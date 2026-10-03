@@ -22,7 +22,7 @@ from src.movement import move_vehicles
 class Highway:
     def __init__(self, lanes=3, length=500, max_v=5, spawn_probability=0.3,
                  crash_lookahead=15, p_distracted=0.05, p_slow=0.2,
-                 clearance_time=40, seed=None):
+                 clearance_time=150, seed=None):
         self.lanes = lanes
         self.length = length
         self.max_v = max_v
