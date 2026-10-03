@@ -27,7 +27,7 @@ class Highway:
         self.length = length
         self.max_v = max_v
         self.spawn_probability = spawn_probability
-        self.crash_lookahead = crash_lookahead  # cells ahead a driver looks for wrecks
+        self.crash_lookahead = crash_lookahead  # cells ahead a driver looks for wrecks and stopped vehicles
         self.p_distracted = p_distracted        # chance a driver is distracted in a step
         self.p_slow = p_slow                    # chance an alert driver randomly slows by 1
         self.clearance_time = clearance_time    # steps a wreck blocks its cell
@@ -53,7 +53,8 @@ class Highway:
         """Advance the simulation by one time step."""
         spawn_vehicles(self, self.spawn_probability)
         change_lanes(self, self.crash_lookahead)
-        update_speeds(self, self.p_distracted, self.p_slow, self.clearance_time)
+        update_speeds(self, self.p_distracted, self.p_slow, self.clearance_time,
+                      self.crash_lookahead)
         move_vehicles(self)
         clear_wrecks(self)
         self.time += 1

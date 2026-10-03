@@ -5,7 +5,7 @@ from src.constants import EMPTY, DRIVING, WRECKED
 from utils.gaps import gap_ahead
 
 
-def update_speeds(road, p_distracted, p_slow, clearance_time):
+def update_speeds(road, p_distracted, p_slow, clearance_time, lookahead):
     """Speed rule for every driving vehicle (statuses == 0).
 
     1. Roll for distraction (probability p_distracted).
@@ -13,8 +13,12 @@ def update_speeds(road, p_distracted, p_slow, clearance_time):
          nor brake for the gap ahead. A stopped distracted driver therefore
          stays stopped instead of creeping into the vehicle in front.
        - An alert driver follows the Nagel-Schreckenberg rules: speed up by 1
-         (up to max_v), slow down to the gap ahead (v = min(v, gap)), then
-         with probability p_slow slow down by 1 more (random slowdown).
+         (up to max_v) and slow down to the gap ahead (v = min(v, gap)).
+         Early braking: if the nearest vehicle within `lookahead` cells is
+         stopped (a wreck or the back of a queue), the driver goes no faster
+         than half the gap to it, so they slow down gradually instead of
+         braking at the last moment. Finally, with probability p_slow they
+         slow down by 1 more (random slowdown).
     2. Collision: if the speed is now larger than the gap, the driver hits the
        vehicle ahead. Both vehicles become wrecks with speed 0, and both get a
        clearance timer of `clearance_time` steps.
@@ -34,6 +38,9 @@ def update_speeds(road, p_distracted, p_slow, clearance_time):
         if not distracted:
             v = min(v + 1, road.max_v)
             v = min(v, gap)
+            far_gap = gap_ahead(road.grid, lane, x, lookahead)
+            if far_gap < lookahead and road.grid[lane, x + far_gap + 1] == 0:
+                v = min(v, far_gap // 2)  # stopped vehicle ahead: brake early
             if road.rng.random() < p_slow:
                 v = max(v - 1, 0)
 
