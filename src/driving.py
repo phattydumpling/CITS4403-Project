@@ -5,7 +5,7 @@ from src.constants import EMPTY, DRIVING, WRECKED
 from utils.gaps import gap_ahead
 
 
-def update_speeds(road, p_distracted, p_slow):
+def update_speeds(road, p_distracted, p_slow, clearance_time):
     """Speed rule for every driving vehicle (statuses == 0).
 
     1. Roll for distraction (probability p_distracted).
@@ -16,7 +16,8 @@ def update_speeds(road, p_distracted, p_slow):
          (up to max_v), slow down to the gap ahead (v = min(v, gap)), then
          with probability p_slow slow down by 1 more (random slowdown).
     2. Collision: if the speed is now larger than the gap, the driver hits the
-       vehicle ahead. Both vehicles become wrecks with speed 0.
+       vehicle ahead. Both vehicles become wrecks with speed 0, and both get a
+       clearance timer of `clearance_time` steps.
 
     `gap` is the number of empty cells ahead, so the vehicle that is hit sits
     at x + gap + 1. Vehicles are handled back to front within each lane, so a
@@ -41,6 +42,7 @@ def update_speeds(road, p_distracted, p_slow):
             for cell in (x, crash_x):
                 road.statuses[lane, cell] = WRECKED
                 road.grid[lane, cell] = 0
+                road.clearance_timers[lane, cell] = clearance_time
             road.crashes += 1
         else:
             road.grid[lane, x] = v
