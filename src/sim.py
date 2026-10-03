@@ -20,12 +20,14 @@ from src.movement import move_vehicles
 
 class Highway:
     def __init__(self, lanes=3, length=500, max_v=5, spawn_probability=0.3,
-                 crash_lookahead=15, seed=None):
+                 crash_lookahead=15, p_distracted=0.05, p_slow=0.2, seed=None):
         self.lanes = lanes
         self.length = length
         self.max_v = max_v
         self.spawn_probability = spawn_probability
         self.crash_lookahead = crash_lookahead  # cells ahead a driver looks for wrecks
+        self.p_distracted = p_distracted        # chance a driver is distracted in a step
+        self.p_slow = p_slow                    # chance an alert driver randomly slows by 1
         self.rng = np.random.default_rng(seed)
         self.time = 0
 
@@ -37,6 +39,7 @@ class Highway:
         self.spawned = 0
         self.exited = 0
         self.lane_changes = 0
+        self.crashes = 0
 
     def n_vehicles(self):
         """Number of vehicles (driving or wrecked) currently on the road."""
@@ -46,7 +49,7 @@ class Highway:
         """Advance the simulation by one time step."""
         spawn_vehicles(self, self.spawn_probability)
         change_lanes(self, self.crash_lookahead)
-        update_speeds(self)
+        update_speeds(self, self.p_distracted, self.p_slow)
         move_vehicles(self)
         self.time += 1
 
