@@ -24,8 +24,9 @@ from src.spawning import spawn_cars
 
 class Intersection:
     def __init__(self, controller="fixed", demand=0.1, ns_share=0.5, left_share=0.2,
-                 right_share=0.2, green_time=20, min_green=5, max_green=40, all_red=3,
-                 feeder_length=30, pocket_length=10, crossing_time=3, seed=None):
+                 right_share=0.2, reaction_delay=0.0, green_time=20, min_green=5,
+                 max_green=40, all_red=3, feeder_length=30, pocket_length=10,
+                 crossing_time=3, seed=None):
         if left_share + right_share > 1:
             raise ValueError("left_share + right_share must be at most 1")
         if controller == "fixed":
@@ -37,6 +38,7 @@ class Intersection:
         self.demand = demand            # average arrival probability per approach per step
         self.ns_share = ns_share        # fraction of arrivals from north and south
         self.move_shares = (left_share, 1 - left_share - right_share, right_share)
+        self.reaction_delay = reaction_delay  # chance a car starting from standstill stalls
         self.crossing_time = crossing_time  # steps a car takes to cross the junction
         # Separate random streams for arrivals and for driver behaviour, so the
         # fixed-time and adaptive runs with the same seed get identical arrivals.
@@ -62,6 +64,7 @@ class Intersection:
         self.blocked_arrivals = 0       # arrivals turned away because the entry cell was full
         self.entered_junction = 0       # cars that crossed a stop line
         self.phase_changes = 0          # greens ended by the controller
+        self.stalls = 0                 # times a car stalled when it could have started
 
     def n_cars(self):
         """Number of cars currently in the feeder lanes and pockets."""

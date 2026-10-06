@@ -43,6 +43,7 @@ def spawn_cars(model):
             "move": move,
             "spawn_step": model.time,
             "wait_time": 0,              # steps spent not moving
-            "reaction_delayed": False,   # stalling this step after the car ahead moved
+            "stopped": False,            # did not move last step (arrives already moving)
+            "reaction_delayed": False,   # stalled this step when it could have moved
         }
         model.spawned += 1
