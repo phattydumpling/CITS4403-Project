@@ -18,14 +18,22 @@ import numpy as np
 
 from src.constants import APPROACHES, EMPTY, MOVES
 from src.movement import move_cars
+from src.signals import AdaptiveController, FixedTimeController
 from src.spawning import spawn_cars
 
 
 class Intersection:
-    def __init__(self, demand=0.3, ns_share=0.5, left_share=0.2, right_share=0.2,
+    def __init__(self, controller="fixed", demand=0.1, ns_share=0.5, left_share=0.2,
+                 right_share=0.2, green_time=20, min_green=5, max_green=40, all_red=3,
                  feeder_length=30, pocket_length=10, crossing_time=3, seed=None):
         if left_share + right_share > 1:
             raise ValueError("left_share + right_share must be at most 1")
+        if controller == "fixed":
+            self.controller = FixedTimeController(green_time, all_red)
+        elif controller == "adaptive":
+            self.controller = AdaptiveController(min_green, max_green, all_red)
+        else:
+            raise ValueError("controller must be 'fixed' or 'adaptive'")
         self.demand = demand            # average arrival probability per approach per step
         self.ns_share = ns_share        # fraction of arrivals from north and south
         self.move_shares = (left_share, 1 - left_share - right_share, right_share)
@@ -42,13 +50,14 @@ class Intersection:
         self.next_id = 1
 
         # Movements that currently have a green light, as (approach, move) pairs.
-        # The signal controllers set this every step; until then everything is red.
+        # The signal controller sets this at the start of every step.
         self.green = set()
 
         # Running totals, used to check the model and measure results.
         self.spawned = 0
         self.blocked_arrivals = 0       # arrivals turned away because the entry cell was full
         self.entered_junction = 0       # cars that crossed a stop line
+        self.phase_changes = 0          # greens ended by the controller
 
     def n_cars(self):
         """Number of cars currently in the feeder lanes and pockets."""
@@ -58,6 +67,7 @@ class Intersection:
     def step(self):
         """Advance the simulation by one time step."""
         spawn_cars(self)
+        self.controller.update(self)
         move_cars(self)
         self.time += 1
 
