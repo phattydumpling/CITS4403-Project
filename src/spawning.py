@@ -21,15 +21,20 @@ def spawn_cars(model):
     its move (left / straight / right) from the turning shares and enters the
     outer end of the feeder lane, but only if that cell is empty; otherwise
     the arrival is lost and counted in `model.blocked_arrivals`.
+
+    Both random numbers are drawn from model.arrival_rng on every step for
+    every approach, whatever the state of the road, so two runs with the same
+    seed see exactly the same arrivals even if their signals differ.
     """
     for approach in APPROACHES:
-        if model.rng.random() >= arrival_probability(model, approach):
+        arrives = model.arrival_rng.random() < arrival_probability(model, approach)
+        move = MOVES[model.arrival_rng.choice(len(MOVES), p=model.move_shares)]
+        if not arrives:
             continue
         feeder = model.feeders[approach]
         if feeder[-1] != EMPTY:
             model.blocked_arrivals += 1
             continue
-        move = MOVES[model.rng.choice(len(MOVES), p=model.move_shares)]
         car_id = model.next_id
         model.next_id += 1
         feeder[-1] = car_id

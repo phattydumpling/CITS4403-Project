@@ -38,7 +38,11 @@ class Intersection:
         self.ns_share = ns_share        # fraction of arrivals from north and south
         self.move_shares = (left_share, 1 - left_share - right_share, right_share)
         self.crossing_time = crossing_time  # steps a car takes to cross the junction
-        self.rng = np.random.default_rng(seed)
+        # Separate random streams for arrivals and for driver behaviour, so the
+        # fixed-time and adaptive runs with the same seed get identical arrivals.
+        arrival_seed, driver_seed = np.random.SeedSequence(seed).spawn(2)
+        self.arrival_rng = np.random.default_rng(arrival_seed)
+        self.driver_rng = np.random.default_rng(driver_seed)
         self.time = 0
 
         self.feeders = {a: np.full(feeder_length, EMPTY, dtype=int) for a in APPROACHES}
