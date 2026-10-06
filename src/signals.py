@@ -15,6 +15,8 @@ all-red) and lasts as long as a car takes to cross the junction.
 """
 import numpy as np
 
+from src.constants import EMPTY
+
 PHASES = (
     frozenset({("N", "straight"), ("N", "left"), ("S", "straight"), ("S", "left")}),
     frozenset({("N", "right"), ("S", "right")}),
@@ -26,6 +28,13 @@ PHASES = (
 def phase_queue(model, phase):
     """Number of cars waiting in the pockets that `phase` serves."""
     return sum(int(np.count_nonzero(model.pockets[key])) for key in PHASES[phase])
+
+
+def phase_wait(model, phase):
+    """Total time, in steps, that the cars in the pockets `phase` serves have
+    spent stopped so far (the sum of their wait times)."""
+    return sum(model.agents[int(car_id)]["wait_time"]
+               for key in PHASES[phase] for car_id in model.pockets[key] if car_id != EMPTY)
 
 
 class SignalController:
@@ -75,13 +84,19 @@ class FixedTimeController(SignalController):
 
 
 class AdaptiveController(SignalController):
-    """Gives green to the longest queue.
+    """Gives green to the phase whose waiting cars have waited longest in total.
+
+    A phase's priority is phase_wait(): the sum of the wait times of the cars
+    queued for it. It grows every step its cars sit on red (by one per waiting
+    car) and falls as they leave on green, so a busy phase builds priority
+    quickly but a quiet phase cannot be passed over forever. This is similar in
+    spirit to Gershenson's (2005) self-organising traffic lights.
 
     Once the current phase has been green for at least `min_green` steps, it
     ends as soon as its own queue is empty, it reaches `max_green` steps, or
-    another phase has a longer queue. After the all-red interval the next green
-    goes to the phase (other than the one that just ended) with the longest
-    queue; ties go to the phase that comes first in the normal order.
+    another phase has a higher priority. After the all-red interval the next
+    green goes to the phase (other than the one that just ended) with the
+    highest priority; ties go to the phase that comes first in the normal order.
     """
 
     def __init__(self, min_green=5, max_green=40, all_red=3):
@@ -92,10 +107,11 @@ class AdaptiveController(SignalController):
     def should_end_green(self, model):
         if self.timer < self.min_green:
             return False
-        own = phase_queue(model, self.phase)
-        longest_other = max(phase_queue(model, p) for p in range(len(PHASES)) if p != self.phase)
-        return own == 0 or self.timer >= self.max_green or longest_other > own
+        if phase_queue(model, self.phase) == 0 or self.timer >= self.max_green:
+            return True
+        highest_other = max(phase_wait(model, p) for p in range(len(PHASES)) if p != self.phase)
+        return highest_other > phase_wait(model, self.phase)
 
     def next_phase(self, model):
         order = [(self.phase + k) % len(PHASES) for k in range(1, len(PHASES))]
-        return max(order, key=lambda p: phase_queue(model, p))   # max keeps the first on ties
+        return max(order, key=lambda p: phase_wait(model, p))   # max keeps the first on ties
