@@ -4,6 +4,11 @@ Every car decides whether to move from the state at the start of the step
 (parallel update): it advances one cell only if the cell ahead was empty when
 the step began. A queue therefore starts off one car at a time, with the gap
 travelling backwards through it, as at a real green light.
+
+Reaction delay (slow-to-start): a car that was stopped in the previous step
+and could now move stays where it is with probability `model.reaction_delay`.
+This applies to every car starting from standstill, wherever it is in the
+queue, not only to the first car after the light turns green.
 """
 import numpy as np
 
@@ -13,6 +18,8 @@ from src.constants import EMPTY
 def move_cars(model):
     """Advance every car by at most one cell and record who had to wait."""
     clear_junction(model)
+    for record in model.agents.values():
+        record["reaction_delayed"] = False
     start_feeders = {a: lane.copy() for a, lane in model.feeders.items()}
     start_pockets = {key: lane.copy() for key, lane in model.pockets.items()}
     moved = set()
@@ -20,11 +27,23 @@ def move_cars(model):
     release_at_stop_lines(model, start_pockets, moved)
     feed_pockets(model, start_feeders, start_pockets, moved)
     for key, lane in model.pockets.items():
-        advance(lane, start_pockets[key], moved)
+        advance(model, lane, start_pockets[key], moved)
     for approach, lane in model.feeders.items():
-        advance(lane, start_feeders[approach], moved)
+        advance(model, lane, start_feeders[approach], moved)
 
     count_waiting(model, moved)
+
+
+def ready_to_move(model, car_id):
+    """Slow-to-start rule. A car that was stopped last step stalls with
+    probability model.reaction_delay; a car that was already moving never does."""
+    record = model.agents[car_id]
+    stalls = (record["stopped"] and model.reaction_delay > 0
+              and model.driver_rng.random() < model.reaction_delay)
+    if stalls:
+        record["reaction_delayed"] = True
+        model.stalls += 1
+    return not stalls
 
 
 def clear_junction(model):
@@ -41,10 +60,11 @@ def clear_junction(model):
 
 
 def release_at_stop_lines(model, start_pockets, moved):
-    """A car at the stop line (index 0) enters the junction if its movement has green."""
+    """A car at the stop line (index 0) enters the junction if its movement has
+    green and it does not stall."""
     for key, pocket in model.pockets.items():
         car_id = int(start_pockets[key][0])
-        if car_id != EMPTY and key in model.green:
+        if car_id != EMPTY and key in model.green and ready_to_move(model, car_id):
             pocket[0] = EMPTY
             model.crossing.append((car_id, model.crossing_time))
             model.agents[car_id]["entry_step"] = model.time
@@ -61,28 +81,33 @@ def feed_pockets(model, start_feeders, start_pockets, moved):
         if car_id == EMPTY:
             continue
         key = (approach, model.agents[car_id]["move"])
-        if start_pockets[key][-1] == EMPTY:
+        if start_pockets[key][-1] == EMPTY and ready_to_move(model, car_id):
             model.pockets[key][-1] = car_id
             feeder[0] = EMPTY
             moved.add(car_id)
 
 
-def advance(lane, start, moved):
+def advance(model, lane, start, moved):
     """Move each car one cell towards index 0 if that cell was empty at the start
-    of the step. Cells changed earlier in this step (the stop line and the
-    feeder-to-pocket hand-over) are not affected, because they are judged on
-    `start`, not on `lane`."""
+    of the step and the car does not stall. Cells changed earlier in this step
+    (the stop line and the feeder-to-pocket hand-over) are not affected, because
+    they are judged on `start`, not on `lane`."""
     for i in np.flatnonzero((start[1:] != EMPTY) & (start[:-1] == EMPTY)) + 1:
         car_id = int(start[i])
+        if not ready_to_move(model, car_id):
+            continue
         lane[i - 1] = car_id
         lane[i] = EMPTY
         moved.add(car_id)
 
 
 def count_waiting(model, moved):
-    """Every car still in a lane that did not move this step has waited one step."""
+    """Every car still in a lane that did not move this step has waited one step
+    and counts as stopped for the slow-to-start rule next step."""
     lanes = list(model.feeders.values()) + list(model.pockets.values())
     for lane in lanes:
         for car_id in lane[lane != EMPTY]:
-            if int(car_id) not in moved:
-                model.agents[int(car_id)]["wait_time"] += 1
+            record = model.agents[int(car_id)]
+            record["stopped"] = int(car_id) not in moved
+            if record["stopped"]:
+                record["wait_time"] += 1
