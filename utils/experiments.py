@@ -24,27 +24,35 @@ import numpy as np
 from src.intersection import Intersection
 from utils.metrics import run_and_measure
 
-DATA_DIR = Path(__file__).resolve().parents[1] / "data"
+RESULTS_DIR = Path(__file__).resolve().parents[1] / "notebooks/Results"
 
-# The factors that are varied, and their values.
-SWEEP = {
-    "controller": ("fixed", "adaptive"),
-    "demand": (0.05, 0.1, 0.15, 0.2),
-    "ns_share": (0.5, 0.7, 0.9),
-    "right_share": (0.1, 0.3, 0.5),
-    "reaction_delay": (0.0, 0.1, 0.2),
-}
 SEEDS = tuple(range(10))
 
-# Settings of the example runs saved with full time series.
-EXAMPLES = [
-    {"controller": c, "demand": 0.15, "ns_share": s, "right_share": 0.3,
-     "reaction_delay": 0.0, "seed": 0}
-    for s in (0.5, 0.9) for c in ("fixed", "adaptive")
-]
+# The factors that are varied, and their values.
+sweep1 = {
+    "controller": ("fixed", "adaptive"),
+}
 
+sweep2 = {
+    "controller": ("fixed", "adaptive"),
+    "demand": (0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5),
+}
+sweep3 = {
+    "controller": ("fixed", "adaptive"),
+    "ns_share": (0.5, 0.6, 0.7, 0.8, 0.9),
+}
+sweep4 = {
+    "controller": ("fixed", "adaptive"),
+    "reaction_delay": (0.0, 0.1, 0.2, 0.35, 0.5),
+}
+sweep5 = {
+    "controller": ("fixed", "adaptive"),
+    "turning": (0.1, 0.3, 0.5, 0.7, 0.9),
+}
 
-def settings_grid(sweep=SWEEP, seeds=SEEDS):
+SWEEPS=[sweep1, sweep2, sweep3, sweep4, sweep5]
+
+def settings_grid(sweep=SWEEPS, seeds=SEEDS):
     """Every combination of the sweep values and seeds, as a list of dictionaries."""
     names = list(sweep) + ["seed"]
     return [dict(zip(names, values))
@@ -57,7 +65,7 @@ def run_one(settings):
     return {**settings, **results}
 
 
-def run_sweep(path=DATA_DIR / "sweep_results.csv", sweep=SWEEP, seeds=SEEDS, processes=None):
+def run_sweep(path=RESULTS_DIR / "sweep_results.csv", sweep=SWEEPS, seeds=SEEDS, processes=None):
     """Run the whole sweep in parallel (one process per CPU core by default),
     write one row per run to `path` and return the rows."""
     grid = settings_grid(sweep, seeds)
@@ -65,29 +73,15 @@ def run_sweep(path=DATA_DIR / "sweep_results.csv", sweep=SWEEP, seeds=SEEDS, pro
         rows = pool.map(run_one, grid, chunksize=4)
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="") as f:
+    with open(path, "a", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=list(rows[0]))
-        writer.writeheader()
         writer.writerows(rows)
-    return rows
-
-
-def record_examples(path=DATA_DIR / "example_runs.npz", examples=EXAMPLES):
-    """Run each example setting with full recording and save its queue lengths
-    (steps x approaches x moves) and green phase (-1 = all-red) at every step."""
-    arrays = {}
-    for i, settings in enumerate(examples):
-        results = run_and_measure(Intersection(**settings), record=True)
-        arrays[f"queues_{i}"] = results["queues"]
-        arrays[f"phases_{i}"] = results["phases"]
-    labels = [", ".join(f"{k}={v}" for k, v in s.items()) for s in examples]
-    np.savez_compressed(path, labels=np.array(labels), **arrays)
-
+    return len(rows)
 
 if __name__ == "__main__":
     start = time.perf_counter()
-    rows = run_sweep()
-    print(f"{len(rows)} runs saved to {DATA_DIR / 'sweep_results.csv'} "
+    rows = 0
+    for sweep in SWEEPS:
+        rows += run_sweep(sweep=sweep)
+    print(f"{rows} runs saved to {RESULTS_DIR / 'sweep_results.csv'} "
           f"in {time.perf_counter() - start:.0f} s")
-    record_examples()
-    print(f"{len(EXAMPLES)} example runs saved to {DATA_DIR / 'example_runs.npz'}")

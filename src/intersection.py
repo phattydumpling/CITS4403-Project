@@ -23,12 +23,12 @@ from src.spawning import spawn_cars
 
 
 class Intersection:
-    def __init__(self, controller="fixed", demand=0.1, ns_share=0.5, left_share=0.2,
-                 right_share=0.2, reaction_delay=0.0, green_time=20, min_green=5,
+    def __init__(self, controller="fixed", demand=0.2, ns_share=0.5, turning=0.5,
+                  reaction_delay=0.0, green_time=20, min_green=5,
                  max_green=40, all_red=3, feeder_length=30, pocket_length=10,
                  crossing_time=3, seed=None):
-        if left_share + right_share > 1:
-            raise ValueError("left_share + right_share must be at most 1")
+        if turning > 1:
+            raise ValueError("turning must be at most 1")
         if controller == "fixed":
             self.controller = FixedTimeController(green_time, all_red)
         elif controller == "adaptive":
@@ -37,7 +37,7 @@ class Intersection:
             raise ValueError("controller must be 'fixed' or 'adaptive'")
         self.demand = demand            # average arrival probability per approach per step
         self.ns_share = ns_share        # fraction of arrivals from north and south
-        self.move_shares = (left_share, 1 - left_share - right_share, right_share)
+        self.move_shares = (turning/2, 1 - turning, turning/2)
         self.reaction_delay = reaction_delay  # chance a car starting from standstill stalls
         self.crossing_time = crossing_time  # steps a car takes to cross the junction
         # Separate random streams for arrivals and for driver behaviour, so the
