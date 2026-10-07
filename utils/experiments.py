@@ -12,6 +12,10 @@ Run the whole experiment from the project folder with
 which writes data/sweep_results.csv (one row per run) and
 data/example_runs.npz (queue lengths and signal phases at every step for a
 few example runs, used for the time-series figures).
+
+The settings use the Intersection argument names in the code (demand,
+ns_share, right_share); the saved files use the clearer names in
+COLUMN_NAMES (arrival_rate, north_south_share, right_turn_share).
 """
 import csv
 import itertools
@@ -36,6 +40,18 @@ SWEEP = {
 }
 SEEDS = tuple(range(10))
 
+# Names used for these settings in the saved files (code name -> file name).
+COLUMN_NAMES = {
+    "demand": "arrival_rate",          # chance a car arrives per approach per step
+    "ns_share": "north_south_share",   # fraction of arrivals from north and south
+    "right_share": "right_turn_share",  # fraction of cars turning right
+}
+
+
+def file_names(row):
+    """Copy of `row` with settings renamed for the saved files (see COLUMN_NAMES)."""
+    return {COLUMN_NAMES.get(name, name): value for name, value in row.items()}
+
 # Settings of the example runs saved with full time series.
 EXAMPLES = [
     {"controller": c, "demand": 0.15, "ns_share": s, "right_share": 0.3,
@@ -59,10 +75,10 @@ def run_one(settings):
 
 def run_sweep(path=DATA_DIR / "sweep_results.csv", sweep=SWEEP, seeds=SEEDS, processes=None):
     """Run the whole sweep in parallel (one process per CPU core by default),
-    write one row per run to `path` and return the rows."""
+    write one row per run to `path` and return the rows (with file names)."""
     grid = settings_grid(sweep, seeds)
     with Pool(processes) as pool:
-        rows = pool.map(run_one, grid, chunksize=4)
+        rows = [file_names(row) for row in pool.map(run_one, grid, chunksize=4)]
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="") as f:
@@ -80,7 +96,7 @@ def record_examples(path=DATA_DIR / "example_runs.npz", examples=EXAMPLES):
         results = run_and_measure(Intersection(**settings), record=True)
         arrays[f"queues_{i}"] = results["queues"]
         arrays[f"phases_{i}"] = results["phases"]
-    labels = [", ".join(f"{k}={v}" for k, v in s.items()) for s in examples]
+    labels = [", ".join(f"{k}={v}" for k, v in file_names(s).items()) for s in examples]
     np.savez_compressed(path, labels=np.array(labels), **arrays)
 
 
