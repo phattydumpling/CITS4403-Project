@@ -21,6 +21,14 @@ different lengths; the main experiment keeps every pocket at 10 cells) runs with
 
 and writes data/sensitivity_pockets.csv.
 
+Arrivals that find the entry full are turned away in these experiments (the
+model default). As a robustness check, the main sweep can be repeated with such
+cars queuing off the map instead (queue_blocked_arrivals=True):
+
+    python -m utils.experiments --queued
+
+which writes data/sweep_results_queued.csv.
+
 The settings use the Intersection argument names in the code (demand,
 ns_share, right_share); the saved files use the clearer names in
 COLUMN_NAMES (arrival_rate, north_south_share, right_turn_share).
@@ -127,6 +135,10 @@ if __name__ == "__main__":
     if "--pockets" in sys.argv:
         path = DATA_DIR / "sensitivity_pockets.csv"
         rows = run_sweep(path, POCKET_SENSITIVITY)
+        print(f"{len(rows)} runs saved to {path} in {time.perf_counter() - start:.0f} s")
+    elif "--queued" in sys.argv:
+        path = DATA_DIR / "sweep_results_queued.csv"
+        rows = run_sweep(path, {**SWEEP, "queue_blocked_arrivals": (True,)})
         print(f"{len(rows)} runs saved to {path} in {time.perf_counter() - start:.0f} s")
     else:
         rows = run_sweep()
