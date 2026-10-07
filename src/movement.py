@@ -103,7 +103,8 @@ def advance(model, lane, start, moved):
 
 def count_waiting(model, moved):
     """Every car still in a lane that did not move this step has waited one step
-    and counts as stopped for the slow-to-start rule next step."""
+    and counts as stopped for the slow-to-start rule next step. Cars waiting in
+    an entry queue off the map have also waited one step."""
     lanes = list(model.feeders.values()) + list(model.pockets.values())
     for lane in lanes:
         for car_id in lane[lane != EMPTY]:
@@ -111,3 +112,6 @@ def count_waiting(model, moved):
             record["stopped"] = int(car_id) not in moved
             if record["stopped"]:
                 record["wait_time"] += 1
+    for queue in model.entry_queues.values():
+        for car_id in queue:
+            model.agents[car_id]["wait_time"] += 1

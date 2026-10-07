@@ -15,7 +15,7 @@ all-red) and lasts as long as a car takes to cross the junction.
 """
 import numpy as np
 
-from src.constants import EMPTY
+from src.constants import APPROACHES, EMPTY, MOVES
 
 PHASES = (
     frozenset({("N", "straight"), ("N", "left"), ("S", "straight"), ("S", "left")}),
@@ -70,17 +70,55 @@ class SignalController:
 
 
 class FixedTimeController(SignalController):
-    """Every phase gets `green_time` steps of green, in the order 0, 1, 2, 3."""
+    """Phases are served in the order 0, 1, 2, 3 with fixed green times.
 
-    def __init__(self, green_time=20, all_red=3):
+    `green_times` gives the green of each phase in steps; a single number gives
+    every phase the same green (the untuned plan: 20 steps each).
+    """
+
+    def __init__(self, green_times=20, all_red=3):
         super().__init__(all_red)
-        self.green_time = green_time
+        if np.isscalar(green_times):
+            green_times = [green_times] * len(PHASES)
+        self.green_times = [int(g) for g in green_times]
 
     def should_end_green(self, model):
-        return self.timer >= self.green_time
+        return self.timer >= self.green_times[self.phase]
 
     def next_phase(self, model):
         return (self.phase + 1) % len(PHASES)
+
+
+def saturation_flow(reaction_delay):
+    """Cars per step that a queued lane discharges on green: 1 car every two
+    steps under the parallel update, slowed by the reaction delay d to
+    1 / (2 + d / (1 - d)) (measured in the model)."""
+    return 1 / (2 + reaction_delay / (1 - reaction_delay))
+
+
+def webster_green_times(model, all_red=3, min_green=5, max_cycle=120):
+    """Fixed-time plan designed from the average demand with Webster's (1958) method.
+
+    For each phase, the flow ratio y is the arrival rate of its busiest lane
+    divided by the saturation flow. With Y the sum of the four y and L the time
+    lost to all-red in one cycle, the cycle length is C = (1.5 L + 5) / (1 - Y),
+    limited to `max_cycle` (and used at the limit when the demand is at or
+    above capacity). The green time C - L is shared between the phases in
+    proportion to y, and every green is at least `min_green` steps.
+    """
+    from src.spawning import arrival_probability          # avoids a circular import
+    s = saturation_flow(model.reaction_delay)
+    lane_flow = {(a, m): arrival_probability(model, a) * share
+                 for a in APPROACHES for m, share in zip(MOVES, model.move_shares)}
+    y = [max(lane_flow[key] for key in phase) / s for phase in PHASES]
+    total_y = sum(y)
+    lost = len(PHASES) * all_red
+    cycle = (1.5 * lost + 5) / (1 - total_y) if total_y < 1 else max_cycle
+    cycle = min(cycle, max_cycle)
+    green = cycle - lost
+    if total_y == 0:
+        return [min_green] * len(PHASES)
+    return [max(min_green, round(green * yi / total_y)) for yi in y]
 
 
 class AdaptiveController(SignalController):
