@@ -31,21 +31,28 @@ def run_and_measure(model, warmup=500, window=2000, cooldown=300, record=False):
     """Run `model` through warm-up, measured window and cool-down; summarise it.
 
     Returns a dictionary of results. Rates are per 100 steps of the window and
-    wait times are in steps. If `record` is True, the dictionary also holds the
-    queue length of every pocket ("queues", shape window x 4 x 3) and the green
-    phase ("phases", -1 for all-red) at every step of the window.
+    wait times are in steps. Waits cover every car that arrived in the window,
+    including time spent queuing off the map; a car that still has not reached
+    the junction after the cool-down counts with its wait so far (a lower
+    bound), and how many such cars there are is reported as cars_unfinished.
+    If `record` is True, the dictionary also holds the queue length of every
+    pocket ("queues", shape window x 4 x 3) and the green phase ("phases", -1
+    for all-red) at every step of the window.
     """
     model.run(warmup)
     first_car = model.next_id                      # cars from here on arrived in the window
     start = {name: getattr(model, name)
-             for name in ("entered_junction", "blocked_arrivals", "phase_changes", "stalls")}
+             for name in ("entered_junction", "blocked_arrivals", "phase_changes", "stalls",
+                          "split_blocks", "cross_blocks")}
 
     queues = np.empty((window, len(APPROACHES), len(MOVES)), dtype=np.int16)
     phases = np.empty(window, dtype=np.int8)
+    outside = np.empty(window)
     for t in range(window):
         model.step()
         queues[t] = queue_lengths(model)
         phases[t] = current_phase(model)
+        outside[t] = model.n_waiting_outside()
     last_car = model.next_id                       # cars from here on arrived in the cool-down
     rates = {name: 100 * (getattr(model, name) - start[name]) / window for name in start}
 
@@ -54,10 +61,10 @@ def run_and_measure(model, warmup=500, window=2000, cooldown=300, record=False):
     window_cars = [car for car_id, car in {**model.agents, **model.finished}.items()
                    if first_car <= car_id < last_car]
     served = [car for car in window_cars if "entry_step" in car]   # reached the junction
-    waits = np.array([car["wait_time"] for car in served], dtype=float)
+    waits = np.array([car["wait_time"] for car in window_cars], dtype=float)
 
     def mean_wait(keep):
-        chosen = [w for w, car in zip(waits, served) if keep(car)]
+        chosen = [w for w, car in zip(waits, window_cars) if keep(car)]
         return float(np.mean(chosen)) if chosen else float("nan")
 
     pocket_means = queues.mean(axis=(0, 1))          # average cars per pocket, by move
@@ -74,9 +81,12 @@ def run_and_measure(model, warmup=500, window=2000, cooldown=300, record=False):
         "blocked_arrivals": rates["blocked_arrivals"],
         "phase_changes": rates["phase_changes"],
         "stalls": rates["stalls"],
+        "split_blocks": rates["split_blocks"],    # spillback: car at the split facing a full pocket
+        "cross_blocks": rates["cross_blocks"],    # ... holding up a car bound for another pocket
         "queue_left": float(pocket_means[MOVES.index("left")]),
         "queue_straight": float(pocket_means[MOVES.index("straight")]),
         "queue_right": float(pocket_means[MOVES.index("right")]),
+        "queue_outside": float(outside.mean()),    # cars waiting off the map, all approaches
     }
     if record:
         results["queues"] = queues

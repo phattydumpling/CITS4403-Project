@@ -75,12 +75,21 @@ def release_at_stop_lines(model, start_pockets, moved):
 def feed_pockets(model, start_feeders, start_pockets, moved):
     """The car at the front of each feeder lane moves into the last cell of its
     pocket if that cell was empty. If the pocket is full the car waits, and so
-    does every car behind it in the feeder lane, whatever their movement."""
+    does every car behind it in the feeder lane, whatever their movement.
+
+    Spillback is counted when the pocket is completely full: model.split_blocks
+    for every such step, and model.cross_blocks when the car right behind wants
+    a different pocket (so traffic for another movement is held up)."""
     for approach, feeder in model.feeders.items():
         car_id = int(start_feeders[approach][0])
         if car_id == EMPTY:
             continue
         key = (approach, model.agents[car_id]["move"])
+        if np.all(start_pockets[key] != EMPTY):
+            model.split_blocks += 1
+            follower = int(start_feeders[approach][1])
+            if follower != EMPTY and model.agents[follower]["move"] != key[1]:
+                model.cross_blocks += 1
         if start_pockets[key][-1] == EMPTY and ready_to_move(model, car_id):
             model.pockets[key][-1] = car_id
             feeder[0] = EMPTY
@@ -103,7 +112,8 @@ def advance(model, lane, start, moved):
 
 def count_waiting(model, moved):
     """Every car still in a lane that did not move this step has waited one step
-    and counts as stopped for the slow-to-start rule next step."""
+    and counts as stopped for the slow-to-start rule next step. Cars waiting in
+    an entry queue off the map have also waited one step."""
     lanes = list(model.feeders.values()) + list(model.pockets.values())
     for lane in lanes:
         for car_id in lane[lane != EMPTY]:
@@ -111,3 +121,6 @@ def count_waiting(model, moved):
             record["stopped"] = int(car_id) not in moved
             if record["stopped"]:
                 record["wait_time"] += 1
+    for queue in model.entry_queues.values():
+        for car_id in queue:
+            model.agents[car_id]["wait_time"] += 1

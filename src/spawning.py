@@ -17,10 +17,13 @@ def arrival_probability(model, approach):
 def spawn_cars(model):
     """Arrival rule, run at the start of every time step.
 
-    For each approach, a car arrives with arrival_probability(). It chooses
-    its move (left / straight / right) from the turning shares and enters the
-    outer end of the feeder lane, but only if that cell is empty; otherwise
-    the arrival is lost and counted in `model.blocked_arrivals`.
+    For each approach, the car at the front of the entry queue (cars waiting
+    off the map) first takes the outer cell of the feeder lane if it is free.
+    Then a new car arrives with arrival_probability() and chooses its move
+    (left / straight / right) from the turning shares. It enters the outer cell
+    if that cell is free and nobody is waiting; otherwise it joins the back of
+    the entry queue (counted in `model.blocked_arrivals`). No arrival is lost,
+    and the time spent in the entry queue counts as waiting time.
 
     Both random numbers are drawn from model.arrival_rng on every step for
     every approach, whatever the state of the road, so two runs with the same
@@ -29,21 +32,32 @@ def spawn_cars(model):
     for approach in APPROACHES:
         arrives = model.arrival_rng.random() < arrival_probability(model, approach)
         move = MOVES[model.arrival_rng.choice(len(MOVES), p=model.move_shares)]
+        feeder = model.feeders[approach]
+        queue = model.entry_queues[approach]
+        if queue and feeder[-1] == EMPTY:
+            feeder[-1] = queue.popleft()
         if not arrives:
             continue
-        feeder = model.feeders[approach]
-        if feeder[-1] != EMPTY:
+        car_id = new_car(model, approach, move)
+        if feeder[-1] == EMPTY:
+            feeder[-1] = car_id
+        else:
+            queue.append(car_id)
+            model.agents[car_id]["stopped"] = True
             model.blocked_arrivals += 1
-            continue
-        car_id = model.next_id
-        model.next_id += 1
-        feeder[-1] = car_id
-        model.agents[car_id] = {
-            "approach": approach,
-            "move": move,
-            "spawn_step": model.time,
-            "wait_time": 0,              # steps spent not moving
-            "stopped": False,            # did not move last step (arrives already moving)
-            "reaction_delayed": False,   # stalled this step when it could have moved
-        }
-        model.spawned += 1
+
+
+def new_car(model, approach, move):
+    """Register a new car in the agents registry and return its ID."""
+    car_id = model.next_id
+    model.next_id += 1
+    model.agents[car_id] = {
+        "approach": approach,
+        "move": move,
+        "spawn_step": model.time,
+        "wait_time": 0,              # steps spent not moving (including outside the map)
+        "stopped": False,            # did not move last step (arrives already moving)
+        "reaction_delayed": False,   # stalled this step when it could have moved
+    }
+    model.spawned += 1
+    return car_id
