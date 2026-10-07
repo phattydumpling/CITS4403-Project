@@ -2,8 +2,9 @@
 
 Every combination of the values in SWEEP is run once for each seed in SEEDS,
 using run_and_measure() (500 warm-up, 2000 measured and 300 cool-down steps).
-The fixed-time and adaptive runs of a setting use the same seeds, so they see
-exactly the same arriving cars and can be compared pair by pair.
+The runs of the three controllers (untuned fixed-time, Webster fixed-time and
+adaptive) in a setting use the same seeds, so they see exactly the same
+arriving cars and can be compared directly.
 
 Run the whole experiment from the project folder with
 
@@ -32,7 +33,7 @@ DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
 # The factors that are varied, and their values.
 SWEEP = {
-    "controller": ("fixed", "adaptive"),
+    "controller": ("fixed", "webster", "adaptive"),
     "demand": (0.05, 0.1, 0.15, 0.2),
     "ns_share": (0.5, 0.7, 0.9),
     "right_share": (0.1, 0.3, 0.5),
@@ -56,7 +57,7 @@ def file_names(row):
 EXAMPLES = [
     {"controller": c, "demand": 0.15, "ns_share": s, "right_share": 0.3,
      "reaction_delay": 0.0, "seed": 0}
-    for s in (0.5, 0.9) for c in ("fixed", "adaptive")
+    for s in (0.5, 0.9) for c in ("fixed", "webster", "adaptive")
 ]
 
 
