@@ -14,12 +14,20 @@ which writes data/sweep_results.csv (one row per run) and
 data/example_runs.npz (queue lengths and signal phases at every step for a
 few example runs, used for the time-series figures).
 
+The pocket-length sensitivity test (straight pocket and turning bays of
+different lengths; the main experiment keeps every pocket at 10 cells) runs with
+
+    python -m utils.experiments --pockets
+
+and writes data/sensitivity_pockets.csv.
+
 The settings use the Intersection argument names in the code (demand,
 ns_share, right_share); the saved files use the clearer names in
 COLUMN_NAMES (arrival_rate, north_south_share, right_turn_share).
 """
 import csv
 import itertools
+import sys
 import time
 from multiprocessing import Pool
 from pathlib import Path
@@ -41,17 +49,30 @@ SWEEP = {
 }
 SEEDS = tuple(range(10))
 
+# Sensitivity test: how the length of the straight pocket and of the turning
+# bays changes spillback and waiting (balanced directions, no reaction delay).
+POCKET_SENSITIVITY = {
+    "controller": ("fixed", "webster", "adaptive"),
+    "demand": (0.1, 0.15),
+    "right_share": (0.3, 0.5),
+    "pocket_length": (10, 20),
+    "turn_pocket_length": (5, 10, 20),
+}
+
 # Names used for these settings in the saved files (code name -> file name).
 COLUMN_NAMES = {
     "demand": "arrival_rate",          # chance a car arrives per approach per step
     "ns_share": "north_south_share",   # fraction of arrivals from north and south
     "right_share": "right_turn_share",  # fraction of cars turning right
+    "pocket_length": "straight_pocket_length",      # cells in the straight pocket
+    "turn_pocket_length": "turn_pocket_length",     # cells in each turning bay
 }
 
 
 def file_names(row):
     """Copy of `row` with settings renamed for the saved files (see COLUMN_NAMES)."""
     return {COLUMN_NAMES.get(name, name): value for name, value in row.items()}
+
 
 # Settings of the example runs saved with full time series.
 EXAMPLES = [
@@ -103,8 +124,13 @@ def record_examples(path=DATA_DIR / "example_runs.npz", examples=EXAMPLES):
 
 if __name__ == "__main__":
     start = time.perf_counter()
-    rows = run_sweep()
-    print(f"{len(rows)} runs saved to {DATA_DIR / 'sweep_results.csv'} "
-          f"in {time.perf_counter() - start:.0f} s")
-    record_examples()
-    print(f"{len(EXAMPLES)} example runs saved to {DATA_DIR / 'example_runs.npz'}")
+    if "--pockets" in sys.argv:
+        path = DATA_DIR / "sensitivity_pockets.csv"
+        rows = run_sweep(path, POCKET_SENSITIVITY)
+        print(f"{len(rows)} runs saved to {path} in {time.perf_counter() - start:.0f} s")
+    else:
+        rows = run_sweep()
+        print(f"{len(rows)} runs saved to {DATA_DIR / 'sweep_results.csv'} "
+              f"in {time.perf_counter() - start:.0f} s")
+        record_examples()
+        print(f"{len(EXAMPLES)} example runs saved to {DATA_DIR / 'example_runs.npz'}")

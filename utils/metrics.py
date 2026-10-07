@@ -42,7 +42,8 @@ def run_and_measure(model, warmup=500, window=2000, cooldown=300, record=False):
     model.run(warmup)
     first_car = model.next_id                      # cars from here on arrived in the window
     start = {name: getattr(model, name)
-             for name in ("entered_junction", "blocked_arrivals", "phase_changes", "stalls")}
+             for name in ("entered_junction", "blocked_arrivals", "phase_changes", "stalls",
+                          "split_blocks", "cross_blocks")}
 
     queues = np.empty((window, len(APPROACHES), len(MOVES)), dtype=np.int16)
     phases = np.empty(window, dtype=np.int8)
@@ -80,6 +81,8 @@ def run_and_measure(model, warmup=500, window=2000, cooldown=300, record=False):
         "blocked_arrivals": rates["blocked_arrivals"],
         "phase_changes": rates["phase_changes"],
         "stalls": rates["stalls"],
+        "split_blocks": rates["split_blocks"],    # spillback: car at the split facing a full pocket
+        "cross_blocks": rates["cross_blocks"],    # ... holding up a car bound for another pocket
         "queue_left": float(pocket_means[MOVES.index("left")]),
         "queue_straight": float(pocket_means[MOVES.index("straight")]),
         "queue_right": float(pocket_means[MOVES.index("right")]),

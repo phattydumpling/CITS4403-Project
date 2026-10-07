@@ -5,10 +5,12 @@ Each approach (N, E, S, W) is a shared feeder lane that splits into three
 turning pockets (left, straight, right) ending at the stop line:
 
     map edge  [feeder: index feeder_length-1 ... 0]  ->  split
-              [left pocket:     index pocket_length-1 ... 0]  -> stop line
-              [straight pocket: index pocket_length-1 ... 0]  -> stop line
-              [right pocket:    index pocket_length-1 ... 0]  -> stop line
+              [left pocket:     turn_pocket_length cells]  -> stop line
+              [straight pocket: pocket_length cells]       -> stop line
+              [right pocket:    turn_pocket_length cells]  -> stop line
 
+The turning pockets are as long as the straight pocket unless
+turn_pocket_length is given (used in the pocket-length sensitivity test).
 Every lane is a 1D array of car IDs (0 = empty); cars travel towards index 0.
 A car that crosses its stop line on green spends `crossing_time` steps in the
 junction and then leaves the model. The details of each car are kept in the
@@ -28,7 +30,7 @@ class Intersection:
     def __init__(self, controller="fixed", demand=0.1, ns_share=0.5, left_share=0.2,
                  right_share=0.2, reaction_delay=0.0, green_time=20, min_green=5,
                  max_green=40, all_red=3, feeder_length=30, pocket_length=10,
-                 crossing_time=3, seed=None):
+                 turn_pocket_length=None, crossing_time=3, seed=None):
         if left_share + right_share > 1:
             raise ValueError("left_share + right_share must be at most 1")
         self.demand = demand            # average arrival probability per approach per step
@@ -56,7 +58,10 @@ class Intersection:
         self.time = 0
 
         self.feeders = {a: np.full(feeder_length, EMPTY, dtype=int) for a in APPROACHES}
-        self.pockets = {(a, m): np.full(pocket_length, EMPTY, dtype=int)
+        if turn_pocket_length is None:
+            turn_pocket_length = pocket_length
+        lengths = {"left": turn_pocket_length, "straight": pocket_length, "right": turn_pocket_length}
+        self.pockets = {(a, m): np.full(lengths[m], EMPTY, dtype=int)
                         for a in APPROACHES for m in MOVES}
         # Cars that arrived while the entry cell was occupied wait off the map,
         # in arrival order, and enter as soon as the cell is free.
@@ -76,6 +81,8 @@ class Intersection:
         self.entered_junction = 0       # cars that crossed a stop line
         self.phase_changes = 0          # greens ended by the controller
         self.stalls = 0                 # times a car stalled when it could have started
+        self.split_blocks = 0           # steps a car waited at the split because its pocket was full
+        self.cross_blocks = 0           # ... while the car right behind it wanted another pocket
 
     def n_cars(self):
         """Number of cars currently in the feeder lanes and pockets."""
