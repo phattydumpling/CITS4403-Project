@@ -30,7 +30,8 @@ class Intersection:
     def __init__(self, controller="fixed", demand=0.1, ns_share=0.5, left_share=0.2,
                  right_share=0.2, turning=None, reaction_delay=0.0, green_time=20, min_green=5,
                  max_green=40, all_red=3, feeder_length=30, pocket_length=10,
-                 turn_pocket_length=None, crossing_time=3, seed=None):
+                 turn_pocket_length=None, crossing_time=3, queue_blocked_arrivals=False,
+                 seed=None):
         # `turning`, if given, is the total share of turning cars, split equally
         # between left and right (used by the one-factor experiments); it
         # replaces left_share and right_share.
@@ -40,6 +41,10 @@ class Intersection:
             left_share = right_share = turning / 2
         if left_share + right_share > 1:
             raise ValueError("left_share + right_share must be at most 1")
+        # What happens to a car that arrives while the entry cell is occupied:
+        # False (default) - it is turned away and never enters the model;
+        # True - it waits off the map in an entry queue and its waiting counts.
+        self.queue_blocked_arrivals = queue_blocked_arrivals
         self.demand = demand            # average arrival probability per approach per step
         self.ns_share = ns_share        # fraction of arrivals from north and south
         self.move_shares = (left_share, 1 - left_share - right_share, right_share)
@@ -70,8 +75,8 @@ class Intersection:
         lengths = {"left": turn_pocket_length, "straight": pocket_length, "right": turn_pocket_length}
         self.pockets = {(a, m): np.full(lengths[m], EMPTY, dtype=int)
                         for a in APPROACHES for m in MOVES}
-        # Cars that arrived while the entry cell was occupied wait off the map,
-        # in arrival order, and enter as soon as the cell is free.
+        # With queue_blocked_arrivals, cars that arrived while the entry cell was
+        # occupied wait here, in arrival order, and enter when the cell is free.
         self.entry_queues = {a: deque() for a in APPROACHES}
         self.crossing = []              # (car ID, steps left) for cars inside the junction
         self.agents = {}                # car ID -> details of a car still in the model
@@ -84,7 +89,7 @@ class Intersection:
 
         # Running totals, used to check the model and measure results.
         self.spawned = 0
-        self.blocked_arrivals = 0       # arrivals that found the entry cell full and queued outside
+        self.blocked_arrivals = 0       # arrivals that found the entry cell full (turned away or queued)
         self.entered_junction = 0       # cars that crossed a stop line
         self.phase_changes = 0          # greens ended by the controller
         self.stalls = 0                 # times a car stalled when it could have started
