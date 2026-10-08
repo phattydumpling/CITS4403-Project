@@ -37,8 +37,10 @@ def run_and_measure(model, warmup=500, window=2000, cooldown=300, record=False):
     are counted in blocked_arrivals: by default they never enter, so they have
     no wait; with queue_blocked_arrivals their time queuing off the map is part
     of their wait. If `record` is True, the dictionary also holds the queue length of every
-    pocket ("queues", shape window x 4 x 3) and the green phase ("phases", -1
-    for all-red) at every step of the window.
+    pocket ("queues", shape window x 4 x 3), the green phase ("phases", -1
+    for all-red) and the number of cars on the approaches ("cars") at every
+    step of the window, plus the wait of every measured car ("waits") and
+    whether it came from the north or south ("served_ns").
     """
     model.run(warmup)
     first_car = model.next_id                      # cars from here on arrived in the window
@@ -49,11 +51,13 @@ def run_and_measure(model, warmup=500, window=2000, cooldown=300, record=False):
     queues = np.empty((window, len(APPROACHES), len(MOVES)), dtype=np.int16)
     phases = np.empty(window, dtype=np.int8)
     outside = np.empty(window)
+    cars = np.empty(window, dtype=np.int16)
     for t in range(window):
         model.step()
         queues[t] = queue_lengths(model)
         phases[t] = current_phase(model)
         outside[t] = model.n_waiting_outside()
+        cars[t] = model.n_cars()
     last_car = model.next_id                       # cars from here on arrived in the cool-down
     rates = {name: 100 * (getattr(model, name) - start[name]) / window for name in start}
 
@@ -92,4 +96,7 @@ def run_and_measure(model, warmup=500, window=2000, cooldown=300, record=False):
     if record:
         results["queues"] = queues
         results["phases"] = phases
+        results["cars"] = cars                     # cars on the approaches at every step
+        results["waits"] = waits                   # wait of every car measured
+        results["served_ns"] = np.array([car["approach"] in NORTH_SOUTH for car in served])
     return results

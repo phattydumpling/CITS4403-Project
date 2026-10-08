@@ -25,16 +25,19 @@ PHASES = (
 )
 
 
-def phase_queue(model, phase):
-    """Number of cars waiting in the pockets that `phase` serves."""
-    return sum(int(np.count_nonzero(model.pockets[key])) for key in PHASES[phase])
+def phase_queue(model, phase, cells=None):
+    """Number of cars waiting in the pockets that `phase` serves. If `cells` is
+    given, only the `cells` cells nearest the stop line are counted (the range
+    of a detector); None counts the whole pocket."""
+    return sum(int(np.count_nonzero(model.pockets[key][:cells])) for key in PHASES[phase])
 
 
-def phase_wait(model, phase):
+def phase_wait(model, phase, cells=None):
     """Total time, in steps, that the cars in the pockets `phase` serves have
-    spent stopped so far (the sum of their wait times)."""
+    spent stopped so far (the sum of their wait times). `cells` limits the
+    count to the cells nearest the stop line, as in phase_queue()."""
     return sum(model.agents[int(car_id)]["wait_time"]
-               for key in PHASES[phase] for car_id in model.pockets[key] if car_id != EMPTY)
+               for key in PHASES[phase] for car_id in model.pockets[key][:cells] if car_id != EMPTY)
 
 
 class SignalController:
@@ -135,21 +138,30 @@ class AdaptiveController(SignalController):
     another phase has a higher priority. After the all-red interval the next
     green goes to the phase (other than the one that just ended) with the
     highest priority; ties go to the phase that comes first in the normal order.
+
+    `detector_range` limits what the controller can see to that many cells of
+    each pocket next to the stop line (None = the whole pocket). With 0 it sees
+    nothing, so every green lasts min_green and phases follow the normal order.
     """
 
-    def __init__(self, min_green=5, max_green=40, all_red=3):
+    def __init__(self, min_green=5, max_green=40, all_red=3, detector_range=None):
         super().__init__(all_red)
         self.min_green = min_green
         self.max_green = max_green
+        self.detector_range = detector_range
+
+    def wait(self, model, phase):
+        """Priority of `phase` as far as the detectors can see."""
+        return phase_wait(model, phase, self.detector_range)
 
     def should_end_green(self, model):
         if self.timer < self.min_green:
             return False
-        if phase_queue(model, self.phase) == 0 or self.timer >= self.max_green:
+        if phase_queue(model, self.phase, self.detector_range) == 0 or self.timer >= self.max_green:
             return True
-        highest_other = max(phase_wait(model, p) for p in range(len(PHASES)) if p != self.phase)
-        return highest_other > phase_wait(model, self.phase)
+        highest_other = max(self.wait(model, p) for p in range(len(PHASES)) if p != self.phase)
+        return highest_other > self.wait(model, self.phase)
 
     def next_phase(self, model):
         order = [(self.phase + k) % len(PHASES) for k in range(1, len(PHASES))]
-        return max(order, key=lambda p: phase_wait(model, p))   # max keeps the first on ties
+        return max(order, key=lambda p: self.wait(model, p))   # max keeps the first on ties
