@@ -78,7 +78,8 @@ POCKET_SENSITIVITY = {
 
 # One-factor experiments (notebooks/Results/Analysis.ipynb). Every setting not
 # varied in a sweep takes its value from this baseline.
-ONE_FACTOR_BASELINE = {"demand": 0.2, "ns_share": 0.5, "turning": 0.5, "reaction_delay": 0.0}
+ONE_FACTOR_BASELINE = {"demand": 0.2, "ns_share": 0.5, "left_share": 0.25, "right_share": 0.25,
+                       "reaction_delay": 0.0}
 
 sweep1 = {
     "controller": ("fixed", "adaptive"),
@@ -97,9 +98,13 @@ sweep4 = {
 }
 sweep5 = {
     "controller": ("fixed", "adaptive"),
-    "turning": (0.1, 0.3, 0.5, 0.7, 0.9),
+    "left_share": (0.1, 0.2, 0.3, 0.4, 0.5),
 }
-ONE_FACTOR_SWEEPS = [sweep1, sweep2, sweep3, sweep4, sweep5]
+sweep6 = {
+    "controller": ("fixed", "adaptive"),
+    "right_share": (0.1, 0.2, 0.3, 0.4, 0.5),
+}
+ONE_FACTOR_SWEEPS = [sweep1, sweep2, sweep3, sweep4, sweep5, sweep6]
 
 # Results written for the one-factor experiments, in the order the notebook reads them.
 ONE_FACTOR_RESULTS = (

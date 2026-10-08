@@ -28,17 +28,10 @@ from src.spawning import spawn_cars
 
 class Intersection:
     def __init__(self, controller="fixed", demand=0.1, ns_share=0.5, left_share=0.2,
-                 right_share=0.2, turning=None, reaction_delay=0.0, green_time=20, min_green=5,
+                 right_share=0.2, reaction_delay=0.0, green_time=20, min_green=5,
                  max_green=40, all_red=3, feeder_length=30, pocket_length=10,
                  turn_pocket_length=None, crossing_time=3, queue_blocked_arrivals=False,
                  seed=None):
-        # `turning`, if given, is the total share of turning cars, split equally
-        # between left and right (used by the one-factor experiments); it
-        # replaces left_share and right_share.
-        if turning is not None:
-            if not 0 <= turning <= 1:
-                raise ValueError("turning must be between 0 and 1")
-            left_share = right_share = turning / 2
         if left_share + right_share > 1:
             raise ValueError("left_share + right_share must be at most 1")
         # What happens to a car that arrives while the entry cell is occupied:
