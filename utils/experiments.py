@@ -20,6 +20,13 @@ different lengths; the main experiment keeps every pocket at 10 cells) runs with
 
 and writes data/sensitivity_pockets.csv.
 
+The left-turn sensitivity test (the main experiment keeps 20% of cars turning
+left and varies only the right-turn share) runs with
+
+    python -m utils.experiments --left
+
+and writes data/sensitivity_left.csv.
+
 The one-factor experiments used by notebooks/Results/Analysis.ipynb vary one
 setting at a time from ONE_FACTOR_BASELINE, for fixed-time and adaptive
 control. They run with
@@ -76,6 +83,18 @@ POCKET_SENSITIVITY = {
     "turn_pocket_length": (5, 10, 20),
 }
 
+# Sensitivity test: how the share of cars turning left changes waiting. Left
+# turns share the green with straight-on cars, so they mainly change how the
+# load is split between the left and straight pockets.
+LEFT_SENSITIVITY = {
+    "controller": ("fixed", "webster", "adaptive"),
+    "demand": (0.05, 0.1, 0.15, 0.2),
+    "ns_share": (0.5,),
+    "left_share": (0.1, 0.2, 0.3, 0.4),
+    "right_share": (0.3,),
+    "reaction_delay": (0.0,),
+}
+
 # One-factor experiments (notebooks/Results/Analysis.ipynb). Every setting not
 # varied in a sweep takes its value from this baseline.
 ONE_FACTOR_BASELINE = {"demand": 0.2, "ns_share": 0.5, "left_share": 0.25, "right_share": 0.25,
@@ -117,6 +136,7 @@ ONE_FACTOR_RESULTS = (
 COLUMN_NAMES = {
     "demand": "arrival_rate",          # chance a car arrives per approach per step
     "ns_share": "north_south_share",   # fraction of arrivals from north and south
+    "left_share": "left_turn_share",    # fraction of cars turning left
     "right_share": "right_turn_share",  # fraction of cars turning right
     "pocket_length": "straight_pocket_length",      # cells in the straight pocket
     "turn_pocket_length": "turn_pocket_length",     # cells in each turning bay
@@ -205,6 +225,10 @@ if __name__ == "__main__":
     if "--pockets" in sys.argv:
         path = DATA_DIR / "sensitivity_pockets.csv"
         rows = run_sweep(path, POCKET_SENSITIVITY)
+        print(f"{len(rows)} runs saved to {path} in {time.perf_counter() - start:.0f} s")
+    elif "--left" in sys.argv:
+        path = DATA_DIR / "sensitivity_left.csv"
+        rows = run_sweep(path, LEFT_SENSITIVITY)
         print(f"{len(rows)} runs saved to {path} in {time.perf_counter() - start:.0f} s")
     elif "--one-factor" in sys.argv:
         n = run_one_factor_experiments()
