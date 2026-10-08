@@ -14,12 +14,15 @@
      (DRIVERS).
   6. Time-varying demand: demand rises above capacity and falls back, and we
      follow how each controller copes and recovers (SURGE).
+  7. Overload: cars that find the entry full wait off the map instead of
+     being turned away, so nothing is lost; demand and reaction delay are
+     raised until no controller can keep up (OVERLOAD).
 
 Run them all from the project folder with
 
     python -m utils.extensions
 
-or one at a time with --fine, --sensing, --drivers or --surge. Results are
+or one at a time with --fine, --sensing, --drivers, --surge or --overload. Results are
 written to data/ext_*.csv and data/ext_*.npz and analysed in
 notebooks/Results/Extensions.ipynb.
 """
@@ -75,6 +78,17 @@ DRIVERS = {
 SURGE = {"base": 0.1, "peak": 0.25, "start": 1000, "ramp": 500, "steps": 3500}
 SURGE_NS_PROBABILITIES = (0.5, 0.7)
 SURGE_SEEDS = tuple(range(20))
+
+# Extension 7: arrival rates and reaction delays up to and beyond what any
+# controller can serve, with blocked arrivals queuing so that no car is lost
+# (and, for comparison, turned away as in the main experiment).
+OVERLOAD = {
+    "controller": ("fixed", "webster", "adaptive"),
+    "demand": (0.1, 0.125, 0.15, 0.175, 0.2, 0.225, 0.25, 0.275, 0.3),
+    "ns_probability": (0.5, 0.8),
+    "reaction_delay": (0.0, 0.1, 0.2, 0.3, 0.4),
+    "queue_blocked_arrivals": (True, False),
+}
 
 
 # --- Measures used by extensions 1-3 -------------------------------------
@@ -237,7 +251,8 @@ def run_surge_experiment(path=DATA_DIR / "ext_surge.npz", processes=None):
 
 
 if __name__ == "__main__":
-    chosen = [a for a in sys.argv[1:] if a.startswith("--")] or ["--fine", "--sensing", "--drivers", "--surge"]
+    chosen = ([a for a in sys.argv[1:] if a.startswith("--")]
+              or ["--fine", "--sensing", "--drivers", "--surge", "--overload"])
     for option in chosen:
         start = time.perf_counter()
         if option == "--fine":
@@ -248,6 +263,8 @@ if __name__ == "__main__":
             n = len(run_sweep(DATA_DIR / "ext_drivers.csv", DRIVERS))
         elif option == "--surge":
             n = run_surge_experiment()
+        elif option == "--overload":
+            n = len(run_sweep(DATA_DIR / "ext_overload.csv", OVERLOAD))
         else:
             raise SystemExit(f"unknown option {option}")
         print(f"{option[2:]}: {n} runs in {time.perf_counter() - start:.0f} s")
