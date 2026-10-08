@@ -17,13 +17,15 @@ def arrival_probability(model, approach):
 def spawn_cars(model):
     """Arrival rule, run at the start of every time step.
 
-    For each approach, the car at the front of the entry queue (cars waiting
-    off the map) first takes the outer cell of the feeder lane if it is free.
-    Then a new car arrives with arrival_probability() and chooses its move
-    (left / straight / right) from the turning shares. It enters the outer cell
-    if that cell is free and nobody is waiting; otherwise it joins the back of
-    the entry queue (counted in `model.blocked_arrivals`). No arrival is lost,
-    and the time spent in the entry queue counts as waiting time.
+    For each approach, a car arrives with arrival_probability() and chooses its
+    move (left / straight / right) from the turning shares. It enters the outer
+    cell of the feeder lane if that cell is free. If the cell is occupied the
+    arrival is counted in `model.blocked_arrivals` and:
+      - by default it is turned away and never enters the model;
+      - with model.queue_blocked_arrivals it joins the back of an entry queue
+        off the map instead. The car at the front of that queue takes the outer
+        cell as soon as it is free (before any new arrival), and the time spent
+        queuing counts as waiting time.
 
     Both random numbers are drawn from model.arrival_rng on every step for
     every approach, whatever the state of the road, so two runs with the same
@@ -38,13 +40,15 @@ def spawn_cars(model):
             feeder[-1] = queue.popleft()
         if not arrives:
             continue
-        car_id = new_car(model, approach, move)
-        if feeder[-1] == EMPTY:
-            feeder[-1] = car_id
-        else:
+        if feeder[-1] != EMPTY:
+            model.blocked_arrivals += 1
+            if not model.queue_blocked_arrivals:
+                continue                      # turned away: the car never enters
+            car_id = new_car(model, approach, move)
             queue.append(car_id)
             model.agents[car_id]["stopped"] = True
-            model.blocked_arrivals += 1
+        else:
+            feeder[-1] = new_car(model, approach, move)
 
 
 def new_car(model, approach, move):
