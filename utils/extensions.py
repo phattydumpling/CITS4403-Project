@@ -9,8 +9,9 @@
      Extensions 1-3 all come from the same runs (FINE_SWEEP).
   4. Limited sensing: the adaptive controller sees only the cells of each
      pocket nearest the stop line (SENSING).
-  5. Different drivers: a share of drivers is much slower to start than the
-     rest, with the same average reaction delay (DRIVERS).
+  5. Different drivers: each driver is slow with some probability, and slow
+     drivers are much slower to start, with the same average reaction delay
+     (DRIVERS).
   6. Time-varying demand: demand rises above capacity and falls back, and we
      follow how each controller copes and recovers (SURGE).
 
@@ -40,8 +41,8 @@ WARMUP = 500   # as in run_and_measure
 FINE_SWEEP = {
     "controller": ("fixed", "webster", "adaptive"),
     "demand": tuple(np.round(np.arange(0.02, 0.305, 0.01), 2)),
-    "ns_share": (0.5, 0.9),
-    "right_share": (0.3,),
+    "ns_probability": (0.5, 0.9),
+    "right_probability": (0.3,),
     "reaction_delay": (0.0, 0.2),
 }
 # Arrival rates whose individual car waits are kept for the distribution plots.
@@ -52,27 +53,27 @@ WAIT_SAMPLE_DEMANDS = (0.1, 0.15, 0.2)
 SENSING = {
     "controller": ("adaptive",),
     "demand": (0.1, 0.15, 0.2),
-    "ns_share": (0.5, 0.9),
-    "right_share": (0.3,),
+    "ns_probability": (0.5, 0.9),
+    "right_probability": (0.3,),
     "reaction_delay": (0.0,),
     "detector_range": (0, 1, 2, 3, 5, 10),
 }
 
-# Extension 5: the same average reaction delay spread over all drivers (share 1)
+# Extension 5: the same average reaction delay spread over all drivers (probability 1)
 # or concentrated in half or a quarter of them.
 DRIVERS = {
     "controller": ("fixed", "webster", "adaptive"),
     "demand": (0.1, 0.15, 0.2),
-    "ns_share": (0.5,),
-    "right_share": (0.3,),
+    "ns_probability": (0.5,),
+    "right_probability": (0.3,),
     "reaction_delay": (0.1, 0.2),
-    "slow_driver_share": (1.0, 0.5, 0.25),
+    "slow_driver_probability": (1.0, 0.5, 0.25),
 }
 
 # Extension 6: arrival rate over time (steps) - steady, a linear rise to a peak
 # above capacity and back down, then steady again while queues clear.
 SURGE = {"base": 0.1, "peak": 0.25, "start": 1000, "ramp": 500, "steps": 3500}
-SURGE_SHARES = (0.5, 0.7)
+SURGE_NS_PROBABILITIES = (0.5, 0.7)
 SURGE_SEEDS = tuple(range(20))
 
 
@@ -99,7 +100,7 @@ def green_periods(phases):
 
 
 def signal_timing(phases):
-    """Average green of each phase, the share of the window each phase is
+    """Average green of each phase, the fraction of the window each phase is
     green, and the cycle length: the average time between the starts of two
     greens of the same phase, averaged over the phases."""
     periods = green_periods(phases)
@@ -108,7 +109,7 @@ def signal_timing(phases):
         lengths = [n for q, _, n in periods if q == p]
         starts = [s for q, s, _ in periods if q == p]
         timing[f"green_{p + 1}"] = float(np.mean(lengths)) if lengths else 0.0
-        timing[f"green_share_{p + 1}"] = float(np.mean(phases == p))
+        timing[f"green_fraction_{p + 1}"] = float(np.mean(phases == p))
         if len(starts) > 1:
             returns.append(np.mean(np.diff(starts)))
     timing["cycle"] = float(np.mean(returns)) if returns else float("nan")
@@ -116,12 +117,12 @@ def signal_timing(phases):
 
 
 def webster_design(settings):
-    """Cycle and green share of each phase in Webster's plan for `settings`."""
+    """Cycle and green fraction of each phase in Webster's plan for `settings`."""
     model = Intersection(**{**settings, "controller": "fixed"})
     greens = webster_green_times(model)
     cycle = sum(greens) + len(PHASES) * model.controller.all_red
     design = {"design_cycle": cycle}
-    design.update({f"design_share_{p + 1}": g / cycle for p, g in enumerate(greens)})
+    design.update({f"design_fraction_{p + 1}": g / cycle for p, g in enumerate(greens)})
     return design
 
 
@@ -168,7 +169,7 @@ def run_fine_sweep(path=DATA_DIR / "ext_fine_sweep.csv", samples=DATA_DIR / "ext
     for row in rows:
         waits = row.pop("waits")
         if row["demand"] in WAIT_SAMPLE_DEMANDS:
-            key = f"{row['controller']}_{row['demand']}_{row['ns_share']}_{row['reaction_delay']}"
+            key = f"{row['controller']}_{row['demand']}_{row['ns_probability']}_{row['reaction_delay']}"
             pooled.setdefault(key, []).append(waits)
     np.savez_compressed(samples, **{key: np.concatenate(w) for key, w in pooled.items()})
     write_rows(path, [file_names(row) for row in rows])
@@ -196,12 +197,12 @@ def surge_demand(t, base=SURGE["base"], peak=SURGE["peak"], start=SURGE["start"]
 
 
 def run_surge(args):
-    """One run through the surge for (controller, ns_share, seed). Webster's plan
+    """One run through the surge for (controller, ns_probability, seed). Webster's plan
     is designed for the base demand, as a plan made for normal traffic would be.
     Returns the cars on the road and the cars turned away so far at every step,
     and the mean wait of the cars arriving in each 50-step interval."""
-    controller, ns_share, seed = args
-    model = Intersection(controller, demand=SURGE["base"], ns_share=ns_share, right_share=0.3, seed=seed)
+    controller, ns_probability, seed = args
+    model = Intersection(controller, demand=SURGE["base"], ns_probability=ns_probability, right_probability=0.3, seed=seed)
     steps = SURGE["steps"]
     cars, turned_away = np.empty(steps), np.empty(steps)
     for t in range(steps):
@@ -219,15 +220,15 @@ def run_surge(args):
 
 
 def run_surge_experiment(path=DATA_DIR / "ext_surge.npz", processes=None):
-    """Run the surge for every controller, share and seed and save the
+    """Run the surge for every controller, north-south probability and seed and save the
     averages over seeds (keys like cars_adaptive_0.5). Returns the number of runs."""
-    jobs = [(c, s, seed) for c in ("fixed", "webster", "adaptive") for s in SURGE_SHARES
+    jobs = [(c, s, seed) for c in ("fixed", "webster", "adaptive") for s in SURGE_NS_PROBABILITIES
             for seed in SURGE_SEEDS]
     with Pool(processes) as pool:
         runs = pool.map(run_surge, jobs)
     arrays = {"demand": np.array([surge_demand(t) for t in range(SURGE["steps"])])}
     for c in ("fixed", "webster", "adaptive"):
-        for s in SURGE_SHARES:
+        for s in SURGE_NS_PROBABILITIES:
             mine = [run for job, run in zip(jobs, runs) if job[:2] == (c, s)]
             for i, name in enumerate(("cars", "turned_away", "waits")):
                 arrays[f"{name}_{c}_{s}"] = np.nanmean([run[i] for run in mine], axis=0)

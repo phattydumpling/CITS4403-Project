@@ -21,7 +21,7 @@ different lengths; the main experiment keeps every pocket at 10 cells) runs with
 and writes data/sensitivity_pockets.csv.
 
 The left-turn sensitivity test (the main experiment keeps 20% of cars turning
-left and varies only the right-turn share) runs with
+left and varies only the right-turn probability) runs with
 
     python -m utils.experiments --left
 
@@ -45,8 +45,8 @@ cars queuing off the map instead (queue_blocked_arrivals=True):
 which writes data/sweep_results_queued.csv.
 
 The settings use the Intersection argument names in the code (demand,
-ns_share, right_share); the main results files use the clearer names in
-COLUMN_NAMES (arrival_rate, north_south_share, right_turn_share).
+ns_probability, right_probability); the main results files use the clearer names in
+COLUMN_NAMES (arrival_rate, north_south_probability, right_turn_probability).
 """
 import csv
 import itertools
@@ -67,8 +67,8 @@ RESULTS_DIR = Path(__file__).resolve().parents[1] / "notebooks" / "Results"
 SWEEP = {
     "controller": ("fixed", "webster", "adaptive"),
     "demand": (0.05, 0.1, 0.15, 0.2),
-    "ns_share": (0.5, 0.7, 0.9),
-    "right_share": (0.1, 0.3, 0.5),
+    "ns_probability": (0.5, 0.7, 0.9),
+    "right_probability": (0.1, 0.3, 0.5),
     "reaction_delay": (0.0, 0.1, 0.2),
 }
 SEEDS = tuple(range(10))
@@ -78,26 +78,26 @@ SEEDS = tuple(range(10))
 POCKET_SENSITIVITY = {
     "controller": ("fixed", "webster", "adaptive"),
     "demand": (0.1, 0.15),
-    "right_share": (0.3, 0.5),
+    "right_probability": (0.3, 0.5),
     "pocket_length": (10, 20),
     "turn_pocket_length": (5, 10, 20),
 }
 
-# Sensitivity test: how the share of cars turning left changes waiting. Left
+# Sensitivity test: how the left-turn probability changes waiting. Left
 # turns share the green with straight-on cars, so they mainly change how the
 # load is split between the left and straight pockets.
 LEFT_SENSITIVITY = {
     "controller": ("fixed", "webster", "adaptive"),
     "demand": (0.05, 0.1, 0.15, 0.2),
-    "ns_share": (0.5,),
-    "left_share": (0.1, 0.2, 0.3, 0.4),
-    "right_share": (0.3,),
+    "ns_probability": (0.5,),
+    "left_probability": (0.1, 0.2, 0.3, 0.4),
+    "right_probability": (0.3,),
     "reaction_delay": (0.0,),
 }
 
 # One-factor experiments (notebooks/Results/Analysis.ipynb). Every setting not
 # varied in a sweep takes its value from this baseline.
-ONE_FACTOR_BASELINE = {"demand": 0.2, "ns_share": 0.5, "left_share": 0.25, "right_share": 0.25,
+ONE_FACTOR_BASELINE = {"demand": 0.2, "ns_probability": 0.5, "left_probability": 0.25, "right_probability": 0.25,
                        "reaction_delay": 0.0}
 
 sweep1 = {
@@ -109,7 +109,7 @@ sweep2 = {
 }
 sweep3 = {
     "controller": ("fixed", "adaptive"),
-    "ns_share": (0.5, 0.6, 0.7, 0.8, 0.9),
+    "ns_probability": (0.5, 0.6, 0.7, 0.8, 0.9),
 }
 sweep4 = {
     "controller": ("fixed", "adaptive"),
@@ -117,11 +117,11 @@ sweep4 = {
 }
 sweep5 = {
     "controller": ("fixed", "adaptive"),
-    "left_share": (0.1, 0.2, 0.3, 0.4, 0.5),
+    "left_probability": (0.1, 0.2, 0.3, 0.4, 0.5),
 }
 sweep6 = {
     "controller": ("fixed", "adaptive"),
-    "right_share": (0.1, 0.2, 0.3, 0.4, 0.5),
+    "right_probability": (0.1, 0.2, 0.3, 0.4, 0.5),
 }
 ONE_FACTOR_SWEEPS = [sweep1, sweep2, sweep3, sweep4, sweep5, sweep6]
 
@@ -135,9 +135,9 @@ ONE_FACTOR_RESULTS = (
 # Names used for these settings in the main results files (code name -> file name).
 COLUMN_NAMES = {
     "demand": "arrival_rate",          # chance a car arrives per approach per step
-    "ns_share": "north_south_share",   # fraction of arrivals from north and south
-    "left_share": "left_turn_share",    # fraction of cars turning left
-    "right_share": "right_turn_share",  # fraction of cars turning right
+    "ns_probability": "north_south_probability",   # chance an arriving car comes from N or S
+    "left_probability": "left_turn_probability",    # chance a car turns left
+    "right_probability": "right_turn_probability",  # chance a car turns right
     "pocket_length": "straight_pocket_length",      # cells in the straight pocket
     "turn_pocket_length": "turn_pocket_length",     # cells in each turning bay
 }
@@ -150,7 +150,7 @@ def file_names(row):
 
 # Settings of the example runs saved with full time series.
 EXAMPLES = [
-    {"controller": c, "demand": 0.15, "ns_share": s, "right_share": 0.3,
+    {"controller": c, "demand": 0.15, "ns_probability": s, "right_probability": 0.3,
      "reaction_delay": 0.0, "seed": 0}
     for s in (0.5, 0.9) for c in ("fixed", "webster", "adaptive")
 ]

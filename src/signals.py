@@ -111,8 +111,8 @@ def webster_green_times(model, all_red=3, min_green=5, max_cycle=120):
     """
     from src.spawning import arrival_probability          # avoids a circular import
     s = saturation_flow(model.reaction_delay)
-    lane_flow = {(a, m): arrival_probability(model, a) * share
-                 for a in APPROACHES for m, share in zip(MOVES, model.move_shares)}
+    lane_flow = {(a, m): arrival_probability(model, a) * p
+                 for a in APPROACHES for m, p in zip(MOVES, model.move_probabilities)}
     y = [max(lane_flow[key] for key in phase) / s for phase in PHASES]
     total_y = sum(y)
     lost = len(PHASES) * all_red
