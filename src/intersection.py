@@ -31,9 +31,19 @@ class Intersection:
                  right_share=0.2, reaction_delay=0.0, green_time=20, min_green=5,
                  max_green=40, all_red=3, feeder_length=30, pocket_length=10,
                  turn_pocket_length=None, crossing_time=3, queue_blocked_arrivals=False,
-                 seed=None):
+                 detector_range=None, slow_driver_share=None, seed=None):
         if left_share + right_share > 1:
             raise ValueError("left_share + right_share must be at most 1")
+        # Different drivers: if slow_driver_share is given, that fraction of
+        # drivers stall with probability reaction_delay / slow_driver_share and
+        # the rest never stall, so the average stays reaction_delay.
+        # None (default): every driver stalls with probability reaction_delay.
+        if slow_driver_share is not None:
+            if not 0 < slow_driver_share <= 1:
+                raise ValueError("slow_driver_share must be in (0, 1]")
+            if reaction_delay / slow_driver_share >= 1:
+                raise ValueError("reaction_delay / slow_driver_share must be below 1")
+        self.slow_driver_share = slow_driver_share
         # What happens to a car that arrives while the entry cell is occupied:
         # False (default) - it is turned away and never enters the model;
         # True - it waits off the map in an entry queue and its waiting counts.
@@ -52,7 +62,7 @@ class Intersection:
             self.controller = FixedTimeController(
                 webster_green_times(self, all_red, min_green), all_red)
         elif controller == "adaptive":
-            self.controller = AdaptiveController(min_green, max_green, all_red)
+            self.controller = AdaptiveController(min_green, max_green, all_red, detector_range)
         else:
             raise ValueError("controller must be 'fixed', 'webster' or 'adaptive'")
         # Separate random streams for arrivals and for driver behaviour, so the

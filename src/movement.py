@@ -6,9 +6,10 @@ the step began. A queue therefore starts off one car at a time, with the gap
 travelling backwards through it, as at a real green light.
 
 Reaction delay (slow-to-start): a car that was stopped in the previous step
-and could now move stays where it is with probability `model.reaction_delay`.
-This applies to every car starting from standstill, wherever it is in the
-queue, not only to the first car after the light turns green.
+and could now move stays where it is with probability `model.reaction_delay`
+(or its own driver's delay, if drivers differ). This applies to every car
+starting from standstill, wherever it is in the queue, not only to the first
+car after the light turns green.
 """
 import numpy as np
 
@@ -35,11 +36,12 @@ def move_cars(model):
 
 
 def ready_to_move(model, car_id):
-    """Slow-to-start rule. A car that was stopped last step stalls with
-    probability model.reaction_delay; a car that was already moving never does."""
+    """Slow-to-start rule. A car that was stopped last step stalls with its
+    driver's reaction delay (model.reaction_delay unless drivers differ); a car
+    that was already moving never does."""
     record = model.agents[car_id]
-    stalls = (record["stopped"] and model.reaction_delay > 0
-              and model.driver_rng.random() < model.reaction_delay)
+    stalls = (record["stopped"] and record["reaction_delay"] > 0
+              and model.driver_rng.random() < record["reaction_delay"])
     if stalls:
         record["reaction_delayed"] = True
         model.stalls += 1

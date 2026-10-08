@@ -55,10 +55,15 @@ def new_car(model, approach, move):
     """Register a new car in the agents registry and return its ID."""
     car_id = model.next_id
     model.next_id += 1
+    delay = model.reaction_delay
+    if model.slow_driver_share is not None:   # different drivers (see Intersection)
+        slow = model.driver_rng.random() < model.slow_driver_share
+        delay = model.reaction_delay / model.slow_driver_share if slow else 0.0
     model.agents[car_id] = {
         "approach": approach,
         "move": move,
         "spawn_step": model.time,
+        "reaction_delay": delay,     # chance this driver stalls when starting from standstill
         "wait_time": 0,              # steps spent not moving (including outside the map)
         "stopped": False,            # did not move last step (arrives already moving)
         "reaction_delayed": False,   # stalled this step when it could have moved
