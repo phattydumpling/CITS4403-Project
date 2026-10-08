@@ -96,8 +96,8 @@ class Intersection:
         self.entered_junction = 0       # cars that crossed a stop line
         self.phase_changes = 0          # greens ended by the controller
         self.stalls = 0                 # times a car stalled when it could have started
-        self.split_blocks = 0           # steps a car waited at the split because its pocket was full
-        self.cross_blocks = 0           # ... while the car right behind it wanted another pocket
+        self.full_pocket_blocks = 0     # times a car at the split could not enter its pocket because it was full
+        self.other_movement_blocks = 0  # ... while the car right behind it wanted a different pocket
 
     def n_cars(self):
         """Number of cars currently in the feeder lanes and pockets."""
