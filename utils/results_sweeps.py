@@ -15,9 +15,13 @@ everything from the project folder with
     python -m utils.results_sweeps
 
 which writes data/fine_sweeps.csv, data/scenarios.csv and data/fine_pockets.csv.
+With --queued it instead repeats the baseline and fine sweeps with blocked
+cars waiting in a queue off the map (queue_blocked_arrivals=True) instead of
+being turned away, and writes data/fine_sweeps_queued.csv.
 Each row is one run; the first column says which sweep or scenario it belongs to.
 """
 import csv
+import sys
 import time
 from multiprocessing import Pool
 
@@ -90,11 +94,14 @@ def run_jobs(path, jobs, processes=None):
     return len(rows)
 
 
-def fine_sweep_jobs():
-    jobs = jobs_for({"sweep": "baseline"}, {}, BASELINE_SEEDS)
+def fine_sweep_jobs(extra=None):
+    """The baseline and the one-setting sweeps; `extra` settings (such as
+    queue_blocked_arrivals) are added to every run."""
+    extra = extra or {}
+    jobs = jobs_for({"sweep": "baseline"}, extra, BASELINE_SEEDS)
     for factor, values in FINE_SWEEPS.items():
         for value in values:
-            jobs += jobs_for({"sweep": factor}, {factor: float(value)})
+            jobs += jobs_for({"sweep": factor}, {factor: float(value), **extra})
     return jobs
 
 
@@ -108,8 +115,12 @@ def pocket_jobs():
 
 
 if __name__ == "__main__":
-    for name, jobs in [("fine_sweeps", fine_sweep_jobs()), ("scenarios", scenario_jobs()),
-                       ("fine_pockets", pocket_jobs())]:
+    if "--queued" in sys.argv:
+        runs = [("fine_sweeps_queued", fine_sweep_jobs({"queue_blocked_arrivals": True}))]
+    else:
+        runs = [("fine_sweeps", fine_sweep_jobs()), ("scenarios", scenario_jobs()),
+                ("fine_pockets", pocket_jobs())]
+    for name, jobs in runs:
         start = time.perf_counter()
         n = run_jobs(DATA_DIR / f"{name}.csv", jobs)
         print(f"{name}: {n} runs in {time.perf_counter() - start:.0f} s")
