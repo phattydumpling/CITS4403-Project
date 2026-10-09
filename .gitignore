@@ -2,3 +2,8 @@ __pycache__/
 *.pyc
 .ipynb_checkpoints/
 Report/*
+
+# Generated figures (made by the notebooks) and unit documents are kept out of the repository
+figures/
+Project.txt
+Rubric_CITS4403_Project-2.pdf

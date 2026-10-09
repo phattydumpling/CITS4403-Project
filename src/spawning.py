@@ -5,20 +5,21 @@ from src.constants import APPROACHES, EMPTY, MOVES, NORTH_SOUTH
 def arrival_probability(model, approach):
     """Chance that a car arrives on `approach` in one time step.
 
-    `demand` is the average over the four approaches. `ns_share` is the
-    fraction of all arrivals that come from the north and south, so 0.5 is
-    balanced and 0.9 sends 90% of the traffic north-south. Probabilities are
+    `demand` is the average over the four approaches. `ns_probability` is the
+    probability that an arriving car comes from the north or south (so the
+    expected fraction of arrivals from there): 0.5 is balanced and 0.9 sends
+    90% of the traffic north-south. Probabilities are
     capped at 1 (at most one car per approach per step).
     """
-    share = model.ns_share if approach in NORTH_SOUTH else 1 - model.ns_share
-    return min(1.0, 2 * model.demand * share)
+    p_direction = model.ns_probability if approach in NORTH_SOUTH else 1 - model.ns_probability
+    return min(1.0, 2 * model.demand * p_direction)
 
 
 def spawn_cars(model):
     """Arrival rule, run at the start of every time step.
 
     For each approach, a car arrives with arrival_probability() and chooses its
-    move (left / straight / right) from the turning shares. It enters the outer
+    move (left / straight / right) from the turning probabilities. It enters the outer
     cell of the feeder lane if that cell is free. If the cell is occupied the
     arrival is counted in `model.blocked_arrivals` and:
       - by default it is turned away and never enters the model;
@@ -33,7 +34,7 @@ def spawn_cars(model):
     """
     for approach in APPROACHES:
         arrives = model.arrival_rng.random() < arrival_probability(model, approach)
-        move = MOVES[model.arrival_rng.choice(len(MOVES), p=model.move_shares)]
+        move = MOVES[model.arrival_rng.choice(len(MOVES), p=model.move_probabilities)]
         feeder = model.feeders[approach]
         queue = model.entry_queues[approach]
         if queue and feeder[-1] == EMPTY:
@@ -56,9 +57,9 @@ def new_car(model, approach, move):
     car_id = model.next_id
     model.next_id += 1
     delay = model.reaction_delay
-    if model.slow_driver_share is not None:   # different drivers (see Intersection)
-        slow = model.driver_rng.random() < model.slow_driver_share
-        delay = model.reaction_delay / model.slow_driver_share if slow else 0.0
+    if model.slow_driver_probability is not None:   # different drivers (see Intersection)
+        slow = model.driver_rng.random() < model.slow_driver_probability
+        delay = model.reaction_delay / model.slow_driver_probability if slow else 0.0
     model.agents[car_id] = {
         "approach": approach,
         "move": move,

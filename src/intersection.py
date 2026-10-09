@@ -27,30 +27,31 @@ from src.spawning import spawn_cars
 
 
 class Intersection:
-    def __init__(self, controller="fixed", demand=0.1, ns_share=0.5, left_share=0.2,
-                 right_share=0.2, reaction_delay=0.0, green_time=20, min_green=5,
+    def __init__(self, controller="fixed", demand=0.1, ns_probability=0.5, left_probability=0.2,
+                 right_probability=0.2, reaction_delay=0.0, green_time=20, min_green=5,
                  max_green=40, all_red=3, feeder_length=30, pocket_length=10,
                  turn_pocket_length=None, crossing_time=3, queue_blocked_arrivals=False,
-                 detector_range=None, slow_driver_share=None, seed=None):
-        if left_share + right_share > 1:
-            raise ValueError("left_share + right_share must be at most 1")
-        # Different drivers: if slow_driver_share is given, that fraction of
-        # drivers stall with probability reaction_delay / slow_driver_share and
-        # the rest never stall, so the average stays reaction_delay.
+                 detector_range=None, slow_driver_probability=None, seed=None):
+        if left_probability + right_probability > 1:
+            raise ValueError("left_probability + right_probability must be at most 1")
+        # Different drivers: if slow_driver_probability is given, each driver is
+        # slow with that probability and then stalls with probability
+        # reaction_delay / slow_driver_probability; the other drivers never stall,
+        # so the average stays reaction_delay.
         # None (default): every driver stalls with probability reaction_delay.
-        if slow_driver_share is not None:
-            if not 0 < slow_driver_share <= 1:
-                raise ValueError("slow_driver_share must be in (0, 1]")
-            if reaction_delay / slow_driver_share >= 1:
-                raise ValueError("reaction_delay / slow_driver_share must be below 1")
-        self.slow_driver_share = slow_driver_share
+        if slow_driver_probability is not None:
+            if not 0 < slow_driver_probability <= 1:
+                raise ValueError("slow_driver_probability must be in (0, 1]")
+            if reaction_delay / slow_driver_probability >= 1:
+                raise ValueError("reaction_delay / slow_driver_probability must be below 1")
+        self.slow_driver_probability = slow_driver_probability
         # What happens to a car that arrives while the entry cell is occupied:
         # False (default) - it is turned away and never enters the model;
         # True - it waits off the map in an entry queue and its waiting counts.
         self.queue_blocked_arrivals = queue_blocked_arrivals
         self.demand = demand            # average arrival probability per approach per step
-        self.ns_share = ns_share        # fraction of arrivals from north and south
-        self.move_shares = (left_share, 1 - left_share - right_share, right_share)
+        self.ns_probability = ns_probability  # chance an arriving car comes from the north or south
+        self.move_probabilities = (left_probability, 1 - left_probability - right_probability, right_probability)
         self.reaction_delay = reaction_delay  # chance a car starting from standstill stalls
         self.crossing_time = crossing_time  # steps a car takes to cross the junction
 
@@ -96,8 +97,8 @@ class Intersection:
         self.entered_junction = 0       # cars that crossed a stop line
         self.phase_changes = 0          # greens ended by the controller
         self.stalls = 0                 # times a car stalled when it could have started
-        self.split_blocks = 0           # steps a car waited at the split because its pocket was full
-        self.cross_blocks = 0           # ... while the car right behind it wanted another pocket
+        self.full_pocket_blocks = 0     # times a car at the split could not enter its pocket because it was full
+        self.other_movement_blocks = 0  # ... while the car right behind it wanted a different pocket
 
     def n_cars(self):
         """Number of cars currently in the feeder lanes and pockets."""
