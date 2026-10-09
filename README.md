@@ -64,7 +64,7 @@ utils/                    helpers and experiment runners
 data/                     saved results of every experiment (CSV / NPZ)
 notebooks/
   Results.ipynb             animation of the model, then the main results
-  Results/Extensions.ipynb  extension experiments
+  Extensions.ipynb          extension experiments
 requirements.txt          dependencies
 ```
 
@@ -104,7 +104,7 @@ jupyter notebook notebooks/
 | Notebook | Contents |
 |---|---|
 | `Results.ipynb` | Start here. An animation of the three controllers side by side on the same traffic, then the baseline comparison, each setting varied on its own, several settings at once, the effect of each setting, signals and queues over time, and pocket lengths. |
-| `Results/Extensions.ipynb` | Tipping point, self-organised signal timing, wait distributions, limited sensing, drivers who differ, a demand surge, and overload when blocked vehicles queue instead of being turned away. |
+| `Extensions.ipynb` | Tipping point, self-organised signal timing, wait distributions, limited sensing, drivers who differ, a demand surge, and overload when blocked vehicles queue instead of being turned away. |
 
 Run the notebooks from their own folder (Jupyter's default), as they find
 `data/` relative to it and save figures to `figures/` in the project folder.

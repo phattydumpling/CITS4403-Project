@@ -24,7 +24,7 @@ Run them all from the project folder with
 
 or one at a time with --fine, --sensing, --drivers, --surge or --overload. Results are
 written to data/ext_*.csv and data/ext_*.npz and analysed in
-notebooks/Results/Extensions.ipynb.
+notebooks/Extensions.ipynb.
 """
 import csv
 import sys
