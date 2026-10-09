@@ -1,6 +1,6 @@
 # Adaptive versus Fixed-Time Traffic Signal Control at a Four-Way Intersection
 
-CITS4403 Computational Modelling project — Kaiyuan (Kevin) Tan and Josh Sporne.
+CITS4403 Computational Modelling project - Kaiyuan (Kevin) Tan and Josh Sporne.
 
 ## Overview
 
@@ -27,13 +27,13 @@ average wait time?
   was empty at the start of the step, so a queue discharges one vehicle every
   two steps. A full pocket blocks the shared lane behind it (spillback).
 - **Arrivals.** Each step a vehicle arrives on each approach at random,
-  controlled by the arrival rate, the north–south probability and the left- and
+  controlled by the arrival rate, the north-south probability and the left- and
   right-turn probabilities. A vehicle that finds its road full is turned away
   (or, optionally, waits in a queue off the map).
 - **Reaction delay.** A vehicle starting from standstill stalls for a step with
   a given probability (a slow-to-start rule).
-- **Signals.** Four protected phases (north–south straight and left,
-  north–south right, east–west straight and left, east–west right), each green
+- **Signals.** Four protected phases (north-south straight and left,
+  north-south right, east-west straight and left, east-west right), each green
   followed by a 3-step all-red. Three controllers:
   - **Fixed-time (untuned):** 20 steps per phase in a fixed order.
   - **Fixed-time (Webster):** the same order with green times designed by
@@ -65,9 +65,11 @@ data/                     saved results of every experiment (CSV / NPZ)
 notebooks/
   Results.ipynb             animation of the model, then the main results
   Results/Extensions.ipynb  extension experiments
-figures/                  figures saved by the notebooks
 requirements.txt          dependencies
 ```
+
+The notebooks also save their figures as PNG files in a `figures/` folder,
+which they create when run; it is not stored in the repository.
 
 ## Setup
 
@@ -91,8 +93,9 @@ Dependencies: `numpy`, `pandas`, `matplotlib` (3.11 or later) and `notebook`
 
 ## Viewing the results
 
-All experiment results are already saved in `data/`, so the notebooks can be
-run straight away without re-running any simulations:
+All experiment results are already saved in `data/`, and the notebooks are
+saved with their outputs, so the figures can be viewed without running anything.
+To run them yourself (no simulations need to be re-run):
 
 ```bash
 jupyter notebook notebooks/
@@ -104,7 +107,8 @@ jupyter notebook notebooks/
 | `Results/Extensions.ipynb` | Tipping point, self-organised signal timing, wait distributions, limited sensing, drivers who differ, a demand surge, and overload when blocked vehicles queue instead of being turned away. |
 
 Run the notebooks from their own folder (Jupyter's default), as they find
-`data/` and `figures/` relative to it. Building the animation in
+`data/` relative to it and save figures to `figures/` in the project folder.
+The animation only plays when the notebook is run in Jupyter, not on GitHub. Building the animation in
 `Results.ipynb` takes about 15 seconds; the settings at the top of that cell can
 be changed to animate any other traffic.
 
@@ -146,7 +150,7 @@ the matching files in `data/`. Times are approximate, on a 16-core machine.
 |---|---|---|---|
 | `python -m utils.results_sweeps` | Baseline (30 seeds), each setting varied on its own, seven scenarios, pocket lengths | `fine_sweeps.csv`, `scenarios.csv`, `fine_pockets.csv` | ~5 min |
 | `python -m utils.results_sweeps --queued` | Baseline and one-setting sweeps with blocked vehicles queuing | `fine_sweeps_queued.csv` | ~4 min |
-| `python -m utils.experiments` | Main experiment: every combination of arrival rate, north–south probability, right-turn probability and reaction delay (3,240 runs) | `sweep_results.csv` | ~5 min |
+| `python -m utils.experiments` | Main experiment: every combination of arrival rate, north-south probability, right-turn probability and reaction delay (3,240 runs) | `sweep_results.csv` | ~5 min |
 | `python -m utils.extensions` | All extension experiments | `ext_*.csv`, `ext_*.npz` | ~16 min |
 
 The extensions can also be run one at a time with `--fine`, `--sensing`,
