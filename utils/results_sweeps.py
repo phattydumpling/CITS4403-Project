@@ -1,4 +1,4 @@
-"""Finer sweeps for notebooks/Results/Results.ipynb.
+"""Finer sweeps for notebooks/Results.ipynb.
 
 Every run starts from BASELINE and changes one or more settings:
 

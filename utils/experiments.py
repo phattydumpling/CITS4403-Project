@@ -1,25 +1,15 @@
-"""The parameter sweeps: run every combination of settings and save the results.
+"""The main experiment: run every combination of settings and save the results.
 
-Main experiment: every combination of the values in SWEEP is run once for
-each seed in SEEDS, using run_and_measure() (500 warm-up, 2000 measured and
-300 cool-down steps). The runs of the three controllers (untuned fixed-time,
-Webster fixed-time and adaptive) in a setting use the same seeds, so they see
-exactly the same arriving cars and can be compared directly. Run it from the
-project folder with
+Every combination of the values in SWEEP is run once for each seed in SEEDS,
+using run_and_measure() (500 warm-up, 2000 measured and 300 cool-down steps).
+The runs of the three controllers (untuned fixed-time, Webster fixed-time and
+adaptive) in a setting use the same seeds, so they see exactly the same
+arriving cars and can be compared directly. Run it from the project folder with
 
     python -m utils.experiments
 
 which writes data/sweep_results.csv (one row per run), analysed in section 4
-of notebooks/Results/Results.ipynb.
-
-The one-factor experiments used by notebooks/Results/Analysis.ipynb vary one
-setting at a time from ONE_FACTOR_BASELINE, for fixed-time and adaptive
-control. They run with
-
-    python -m utils.experiments --one-factor
-
-and write notebooks/Results/sweep_results.csv (no header; see
-run_one_factor_experiments for the column layout).
+of notebooks/Results.ipynb.
 
 Arrivals that find the entry full are turned away in these experiments (the
 model default); extension 7 in utils/extensions.py lets them queue instead.
@@ -30,7 +20,6 @@ COLUMN_NAMES (arrival_rate, north_south_probability, right_turn_probability).
 """
 import csv
 import itertools
-import sys
 import time
 from multiprocessing import Pool
 from pathlib import Path
@@ -39,7 +28,6 @@ from src.intersection import Intersection
 from utils.metrics import run_and_measure
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
-RESULTS_DIR = Path(__file__).resolve().parents[1] / "notebooks" / "Results"
 
 # The factors that are varied, and their values.
 SWEEP = {
@@ -50,43 +38,6 @@ SWEEP = {
     "reaction_delay": (0.0, 0.1, 0.2),
 }
 SEEDS = tuple(range(10))
-
-# One-factor experiments (notebooks/Results/Analysis.ipynb). Every setting not
-# varied in a sweep takes its value from this baseline.
-ONE_FACTOR_BASELINE = {"demand": 0.2, "ns_probability": 0.5, "left_probability": 0.25, "right_probability": 0.25,
-                       "reaction_delay": 0.0}
-
-sweep1 = {
-    "controller": ("fixed", "adaptive"),
-}
-sweep2 = {
-    "controller": ("fixed", "adaptive"),
-    "demand": (0.05, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5),
-}
-sweep3 = {
-    "controller": ("fixed", "adaptive"),
-    "ns_probability": (0.5, 0.6, 0.7, 0.8, 0.9),
-}
-sweep4 = {
-    "controller": ("fixed", "adaptive"),
-    "reaction_delay": (0.0, 0.1, 0.2, 0.35, 0.5),
-}
-sweep5 = {
-    "controller": ("fixed", "adaptive"),
-    "left_probability": (0.1, 0.2, 0.3, 0.4, 0.5),
-}
-sweep6 = {
-    "controller": ("fixed", "adaptive"),
-    "right_probability": (0.1, 0.2, 0.3, 0.4, 0.5),
-}
-ONE_FACTOR_SWEEPS = [sweep1, sweep2, sweep3, sweep4, sweep5, sweep6]
-
-# Results written for the one-factor experiments, in the order the notebook reads them.
-ONE_FACTOR_RESULTS = (
-    "mean_wait", "wait_ns", "wait_ew", "wait_left", "wait_straight", "wait_right",
-    "cars_measured", "cars_unfinished", "throughput", "blocked_arrivals",
-    "phase_changes", "stalls", "queue_left", "queue_straight", "queue_right",
-)
 
 # Names used for these settings in the main results files (code name -> file name).
 COLUMN_NAMES = {
@@ -132,37 +83,8 @@ def run_sweep(path=DATA_DIR / "sweep_results.csv", sweep=SWEEP, seeds=SEEDS, pro
     return rows
 
 
-def run_one_factor(settings):
-    """Run one one-factor setting (baseline plus `settings`) and return its row:
-    the varied settings in sweep order (controller, the varied factor if any,
-    seed) followed by the ONE_FACTOR_RESULTS values."""
-    results = run_and_measure(Intersection(**{**ONE_FACTOR_BASELINE, **settings}))
-    return list(settings.values()) + [results[name] for name in ONE_FACTOR_RESULTS]
-
-
-def run_one_factor_experiments(path=RESULTS_DIR / "sweep_results.csv", sweeps=ONE_FACTOR_SWEEPS,
-                               seeds=SEEDS, processes=None):
-    """Run every one-factor sweep and write all rows, sweep after sweep, to
-    `path` without a header (the file is replaced, not appended to). Each
-    setting's runs are consecutive rows, one per seed. Returns the number of rows."""
-    rows = []
-    with Pool(processes) as pool:
-        for sweep in sweeps:
-            rows += pool.map(run_one_factor, settings_grid(sweep, seeds), chunksize=4)
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="") as f:
-        csv.writer(f).writerows(rows)
-    return len(rows)
-
-
 if __name__ == "__main__":
     start = time.perf_counter()
-    if "--one-factor" in sys.argv:
-        n = run_one_factor_experiments()
-        print(f"{n} runs saved to {RESULTS_DIR / 'sweep_results.csv'} "
-              f"in {time.perf_counter() - start:.0f} s")
-    else:
-        rows = run_sweep()
-        print(f"{len(rows)} runs saved to {DATA_DIR / 'sweep_results.csv'} "
-              f"in {time.perf_counter() - start:.0f} s")
+    rows = run_sweep()
+    print(f"{len(rows)} runs saved to {DATA_DIR / 'sweep_results.csv'} "
+          f"in {time.perf_counter() - start:.0f} s")

@@ -59,13 +59,12 @@ utils/                    helpers and experiment runners
   metrics.py                run_and_measure(): run one simulation and summarise it
   animation.py              draw the intersection and animate the controllers
   results_sweeps.py         baseline, one-setting sweeps, scenarios, pocket lengths
-  experiments.py            main experiment (every combination) and one-factor experiments
+  experiments.py            main experiment (every combination of four settings)
   extensions.py             extension experiments
 data/                     saved results of every experiment (CSV / NPZ)
-notebooks/Results/        analysis notebooks
+notebooks/
   Results.ipynb             animation of the model, then the main results
-  Extensions.ipynb          extension experiments
-  Analysis.ipynb            one-factor experiments (untuned vs adaptive)
+  Results/Extensions.ipynb  extension experiments
 figures/                  figures saved by the notebooks
 requirements.txt          dependencies
 ```
@@ -96,14 +95,13 @@ All experiment results are already saved in `data/`, so the notebooks can be
 run straight away without re-running any simulations:
 
 ```bash
-jupyter notebook notebooks/Results/
+jupyter notebook notebooks/
 ```
 
 | Notebook | Contents |
 |---|---|
 | `Results.ipynb` | Start here. An animation of the three controllers side by side on the same traffic, then the baseline comparison, each setting varied on its own, several settings at once, the effect of each setting, signals and queues over time, and pocket lengths. |
-| `Extensions.ipynb` | Tipping point, self-organised signal timing, wait distributions, limited sensing, drivers who differ, a demand surge, and overload when blocked vehicles queue instead of being turned away. |
-| `Analysis.ipynb` | One-factor experiments comparing the untuned and adaptive controllers. |
+| `Results/Extensions.ipynb` | Tipping point, self-organised signal timing, wait distributions, limited sensing, drivers who differ, a demand surge, and overload when blocked vehicles queue instead of being turned away. |
 
 Run the notebooks from their own folder (Jupyter's default), as they find
 `data/` and `figures/` relative to it. Building the animation in
@@ -149,7 +147,6 @@ the matching files in `data/`. Times are approximate, on a 16-core machine.
 | `python -m utils.results_sweeps` | Baseline (30 seeds), each setting varied on its own, seven scenarios, pocket lengths | `fine_sweeps.csv`, `scenarios.csv`, `fine_pockets.csv` | ~5 min |
 | `python -m utils.results_sweeps --queued` | Baseline and one-setting sweeps with blocked vehicles queuing | `fine_sweeps_queued.csv` | ~4 min |
 | `python -m utils.experiments` | Main experiment: every combination of arrival rate, north–south probability, right-turn probability and reaction delay (3,240 runs) | `sweep_results.csv` | ~5 min |
-| `python -m utils.experiments --one-factor` | One-factor experiments for `Analysis.ipynb` | `notebooks/Results/sweep_results.csv` | ~1 min |
 | `python -m utils.extensions` | All extension experiments | `ext_*.csv`, `ext_*.npz` | ~16 min |
 
 The extensions can also be run one at a time with `--fine`, `--sensing`,
