@@ -17,7 +17,8 @@ everything from the project folder with
 which writes data/fine_sweeps.csv, data/scenarios.csv and data/fine_pockets.csv.
 With --queued it instead repeats the baseline and fine sweeps with blocked
 cars waiting in a queue off the map (queue_blocked_arrivals=True) instead of
-being turned away, and writes data/fine_sweeps_queued.csv.
+being turned away, and writes data/fine_sweeps_queued.csv (analysed with the
+overload extension in notebooks/Results/Extensions.ipynb).
 Each row is one run; the first column says which sweep or scenario it belongs to.
 """
 import csv
